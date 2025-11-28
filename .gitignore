@@ -1,0 +1,17 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+.RDataTmp
+.RDataTmp1
+.RDataTmp2
+.RDataTmp3
+.RDataTmp3
+.RDataTmp4
+
+
+# All raw datasets
+Raw Data/
+
+# All in progress datasets
+Datasets In Progress/

@@ -1,0 +1,792 @@
+---
+title: "Union Army Data Research Project"
+output: html_document
+date: "2025-07-01"
+---
+
+## Union Army Data Overview
+
+# Data Importing:
+
+```{r}
+
+library(DBI)
+library(RSQLite)
+library(duckdb)
+library(tidyverse)
+library(data.table)
+library(readr)
+
+mil = fread("mil_union_army.csv")
+dis = fread('dis_union_army.csv')
+msr = fread('msr_union_army.csv')
+cen = fread("cen_union_army.csv")
+cmr = fread("cmr_union_army.csv")
+
+con <- dbConnect(duckdb::duckdb(), dbdir = ":memory:", read_only = FALSE)
+duckdb::duckdb_register(con, "mil", mil %>% mutate(recidnum = as.character(recidnum)))
+duckdb::duckdb_register(con, "dis", dis %>% mutate(recidnum = as.character(recidnum)))
+duckdb::duckdb_register(con, "msr", msr %>% mutate(recidnum = as.character(recidnum)))
+duckdb::duckdb_register(con, "cen", cen %>% mutate(recidnum = as.character(recidnum)))
+duckdb::duckdb_register(con, "cmr", cmr %>% mutate(recidnum = as.character(recidnum)))
+
+options(stringsAsFactors = FALSE)
+
+```
+
+# Initial data cleaning and manipulation in SQL:
+
+Chunk 1 Variable Isolation + Database Joining (splitting into two chunks due to sheer amount of variables):+
+
+```{sql, connection=con, output.var="full_data1"}
+
+select distinct 
+recidnum, a_age, a_ageqc, gen_birthplace_icpsr1, gen_birthplace_icpsr2, a_brtcnt, gen_a_brtcnt_icpsr, a_brtcty, a_brthqc, a_brthst, gen_a_brthst_icpsr, a_clm01, a_clm02, a_clm03, a_clm04, a_clm05, a_clm06, a_clm07, a_clm08, a_clm09, a_clm10, a_clm11, a_clm12, a_cltcty, a_cltcnt, gen_a_cltcnt_icpsr, a_clst01, a_clst02, a_clst03, a_clst04, a_clst05, a_clst06, a_clst07, a_clst08, a_clst09, a_clst10, a_clst11, a_clst12, gen_a_cltst_icpsr, a_dis01, a_dis02, a_dis03, a_dis04, a_dis05, a_dis06, a_dis07, a_dis08, a_dis09, a_dis10, a_dis11, a_dis12, a_dis13, a_dis14, a_dis15, a_dis16, a_dis17, a_dis18, a_dis19, a_dis20, a_dis21, a_dis22, a_hgtft, a_hgtin, a_hgtqc, a_mlsta1, a_mlsta2, a_mlsta3, a_mlsta4, a_mlsta5, a_occqc1, a_occqc2, a_ocdsc1, a_ocdsc2, a_ocdsc3, gen_a_ococn1, gen_a_ococn2, gen_a_ococn3, gen_a_ococn4, gen_a_ococn5, a_ocpat1, a_ocpat2, a_ocpat3, a_ocpat4, a_ocpat5, gen_a_ococd1, gen_a_ococd2, gen_a_ococd3, gen_a_ococd4, gen_a_ococd5, gen_milocd01, gen_milocd02, gen_milocd03, gen_milocd04, gen_milocd05, gen_milocd06, gen_milocd07, gen_milocd08, gen_milocd09, gen_milocd10, gen_milocn01, gen_milocn02, gen_milocn03, gen_milocn04, gen_milocn05, gen_milocn06, gen_milocn07, gen_milocn08, gen_milocn09, gen_milocn10, a_weight, a_wgtqc, a_xmdate, a_xmdtqc, admtdt01, admtdt02, admtdt03, admtdt04, admtdt05, admtdt06, admtdt07, admtdt08, admtdt09, admtdt10, admtdt11, admtdt12, admtdt13, admtdt14, admtdt15, admtdt16, admtdt17, admtdt18, admtdt19, admtdt20, admtqc01, admtqc02, admtqc03, admtqc04, admtqc05, admtqc06, admtqc07, admtqc08, admtqc09, admtqc10, admtqc11, admtqc12, admtqc13, admtqc14, admtqc15, admtqc16, admtqc17, admtqc18, admtqc19, admtqc20, afdesc01, afdesc02, afdesc03, afdesc04, afdesc05, afdesc06, afdesc07, afdesc08, afdesc09, afdesc10, afdesc11, afdesc13, afdvdt01, afdvdt02, afdvdt03, afdvdt04, afdvdt05, afdvdt06, afdvdt07, afdvdt08, afdvdt09, afdvdt10, afdvdt11, afdvdt13, afdvdt17, afdvdt20, afdvqc01, afdvqc02, afdvqc03, afdvqc04, afdvqc05, afdvqc06, afdvqc07, ageinj01, ageinj02, ageinj03, ageinj04, ageinj05, ageinj06, ageinj07, ageinj08, ageinj09, ageinj10, ageinj11, ageinj12, ageinj13, ageinj14, ageinj15, ageinj16, ageinj17, ageinj18, ageinj19, ageinj20, appage01, appage02, appage03, appage04, appage05, appage06, appage07, appage08, appage09, appage10, appage11, appage12, appage13, appage14, appage15, appage16, appage17, appage18, appage19, appage20, c_rel01, c_rel02, c_rel03, c_rel04, c_rel05, c_rel06, c_rel07, c_rel08, c_rel09, c_rel10, c_rel11, c_rel12, c_rel13, c_rel14, cd_whn1, cd_whn2, cd_whn3, cd_whn4, cd_whn5, censqc_5, censqc_6, censqc_0, censqc_1, chgcomp1, chgcomp2, chgcomp3, chgcomp4, chgcomp5, chgcomp6, chgcomp7, chgdesc1, chgdesc2, chgdesc3, chgdesc4, chgdesc5, chgdesc6, chgdesc7, chgdt1, chgdt2, chgdt3, chgdt4, chgdt5, chgdt6, chgdt7, chgqc1, chgqc2, chgqc3, chgqc4, chgqc5, chgqc6, chgqc7, chgrank1, chgrank2, chgrank3, chgrank4, chgrank5, chgrank6, chgrank7, chgstat1, chgstat2, chgstat3, chgstat4, chgstat5, chgstat6, chgstat7, ctynam_5, ctynam_6, ctynam_0, ctynam_1, dponet01, dponet02, dponet03, dponet04, dponet05, dponet06, dponet07, dponet08, dponet09, dponet10, dponet11, dponet13, dponet17, dponet19, dponet20, dchdt1_1, dchdt1_2, dchdt1_3, dchdt2_1, dchdt2_2, dchdt2_3, dchqc1_1, dchqc1_2, dchqc1_3, dchqc2_1, dchqc2_2, dchqc2_3, dchst1_1, dchst1_2, dchst1_3, dchst2_1, dchst2_2, dchst2_3, dchrn1_1, dchrn1_2, dchrn1_3, dchrn2_1, dchrn2_2, dchrn2_3, dschrn01, dschrn02, dschrn03, dschrn04, dschrn05, dschrn06, dschrn07, dschrn08, dschrn09, dschrn10, dschrn11, dschrn12, dschrn13, dschrn14, dschrn15, dschrn16, dschrn17, dschrn18, dschrn19, dschrn20, dcpqc1_1, dcpqc1_2, dcpqc1_3, dcpqc2_1, dcpqc2_2, dcpqc2_3 dschdt01, dschdt02, dschdt03, dschdt04, dschdt05, dschdt06, dschdt07, dschdt08, dschdt09, dschdt10, dschdt11, dschdt12, dschdt13, dschdt14, dschdt15, dschdt16, dschdt17, dschdt18, dschdt19, dschdt20, dschqc01, dschqc02, dschqc03, dschqc04, dschqc05, dschqc06, dschqc07, dschqc08, dschqc09, dschqc10, dschqc11, dschqc12, dschqc13, dschqc14, dschqc15, dschqc16, dschqc20, dsrtdt01, dsrtdt02, dsrtdt03, dsrtdt04, dsrtdt05, dsrtdt06, dsrtdt07, dsrtdt08, dsrtdt09, dsrtdt10, dsrtdt11, dsrtdt12, dsrtdt13, dsrtdt14, dsrtdt15, 
+dsrtdt16, dsrtdt17, dsrtdt18, dsrtdt19, dsrtdt20, dthcs01, dthcs02, dsrtqc01, dsrtqc02, dsrtqc03, dsrtqc04, dsrtqc05, dsrtqc06, dsrtqc07, dsrtqc08, dsrtqc09, dsrtqc10, dsrtqc11, dsrtqc12, dsrtqc13, dsrtqc14, dsrtqc15, dsrtqc16, dsrtqc17, dsrtqc18, dsrtqc19, dsrtqc20, dthcs03, dthcs04, dthcs05, dthcs06, dthcs07, dthcs08, dthcs09, dthcs10, dthcs11, dthcs12, dthcs13, dthcs14, dthcs15, dthcs16, dthcs17, dthcs18, dthcs19, dthcs20, dthdt01, dthdt02, dthdt03, dthdt04, dthdt05, dthdt06, dthdt07, dthdt08, dthdt09, dthdt10, dthdt11, dthdt12, dthdt13, dthdt14, dthdt15, dthdt16, dthdt17, dthdt18, dthdt19, dthdt20, dthqc01, dthqc02, dthqc03, dthqc04, dthqc05, dthqc06, dthqc07, dthqc08, dthqc09, dthqc10, dthqc11, dthqc12, dthqc13, dthqc14, dthqc15, dthqc16, dthqc17, dthqc18, dthqc20, examnum, gen_rd_cause_10icd, gen_rd_ccaus_10icd, gen_rd_cause_6icd, g_rel01, g_rel02, g_rel03, g_rel04, g_rel05, g_rel06, g_rel07, g_rel08, g_rel09, g_rel10, g_rel11, g_rel12, g_rel13, g_rel14, g_rel15, g_rel16, gen_census_address_icpsr_5, gen_census_address_icpsr_6, gen_census_address_icpsr_0, gen_census_address_icpsr_1, gen_claimant_address_icpsr, gen_claimant_birthplace_icpsr, gen_deathplace_icpsr, gen_discharge_icpsr1_1, gen_discharge_icpsr1_2, gen_discharge_icpsr1_3, gen_discharge_icpsr2_1, gen_discharge_icpsr2_2, gen_discharge_icpsr2_3, gen_father_birthplace_icpsr, geoloc01, geoloc02, geoloc03, geoloc04, geoloc05, geoloc06, geoloc07, geoloc08, geoloc09, geoloc10, geoloc11, geoloc12, geoloc13, geoloc14, geoloc15, geoloc16, geoloc17, geoloc18, geoloc19, geoloc20, h_rel101, h_rel102, h_rel103, h_rel104, h_rel105, h_rel106, h_rel107, h_rel108, h_rel109, h_rel110, h_rel111, h_rel201, h_rel202, h_rel203, h_rel204, h_rel205, h_rel206, h_rel207, h_rel208, h_rel209, h_rel210, h_rel301, h_rel302, h_rel303, h_rel304, h_rel401, h_rel402, h_rel403, hosppl01, hosppl02, hosppl03, hosppl04, hosppl05, hosppl06, hosppl07, hosppl08, hosppl09, hosppl10, hosppl11, hosppl12, hosppl13, hosppl14, hosppl15, hosppl16, hosppl17, hosppl18, hosppl19, hosppl20, i_cmt1, i_cmt2, i_cmt3, i_cur1, i_cur2, i_cur3, i_cur4, i_eff101, i_eff102, i_eff103, i_eff104, i_eff105, i_eff106, i_eff107, i_eff108, i_eff109, i_eff110, i_eff111, i_eff112, i_eff113, i_eff114, i_eff115, i_eff116, i_eff117, i_eff118, i_eff119, i_eff120, i_eff121, i_eff122, i_eff123, i_eff124, i_eff125, i_eff126, i_eff201, i_eff202, i_eff203, i_eff204, i_eff205, i_eff206, i_eff207, i_eff208, i_eff209, i_eff210, i_eff211, i_eff212, i_eff213, i_eff214, i_eff215, i_eff216, i_eff217, i_eff218, i_eff219, i_eff220, i_eff221, i_eff222, i_eff223, i_eff224, i_eff301, i_eff302, i_eff303, i_eff304, i_eff305, i_eff306, i_eff307, i_eff308, i_eff309, i_eff310, i_eff311, i_eff312, i_eff313, i_eff314, i_eff315, i_eff316, i_eff317, i_eff318, i_eff401, i_eff402, i_eff403, i_eff404, i_eff405, i_fev1, i_fev2, i_fev3, i_fev4, i_fev5, i_rel101, i_rel102, i_rel103, i_rel104, i_rel105, i_rel106, i_rel107, i_rel108, i_rel109, i_rel110, i_rel111, i_rel112, i_rel113, i_rel114, i_rel115, i_rel116, i_rel201, i_rel202, i_rel203, i_rel204, i_rel205, i_rel206, i_rel207, i_rel208, i_rel209, i_rel301, i_rel302, i_rel303, i_rel304, i_rel305, i_rel306, i_rel401, i_rel402, i_rel403, i_whn11, i_whn12, i_whn13, i_whn21, i_whn22, i_whn31, i_whn41, i_whr11, i_whr12, i_whr13, i_whr21, i_whr31, illwnd01, illwnd02, illwnd03, illwnd04, illwnd05, illwnd06, illwnd07, illwnd08, illwnd09, illwnd10, illwnd11, illwnd12, illwnd13, illwnd14, illwnd15, illwnd16, illwnd17, illwnd18, illwnd19, illwnd20, ilwdsc01, ilwdsc02, ilwdsc03, ilwdsc04, ilwdsc05, ilwdsc06, ilwdsc07, ilwdsc08, ilwdsc09, ilwdsc10, ilwdsc11, ilwdsc12, ilwdsc13, ilwdsc14, ilwdsc15, ilwdsc16, ilwdsc17, ilwdsc18, ilwdsc19, ilwdsc20, ilwsev01, ilwsev02, ilwsev03, ilwsev04, ilwsev05, ilwsev06, ilwsev07, ilwsev08, ilwsev09, ilwsev10, ilwsev11, ilwsev12, ilwsev13, ilwsev14, ilwsev15, ilwsev16, ilwsev17, ilwsev18, ilwsev19, ilwsev20, ilwdqc01, ilwdqc02, ilwdqc03, ilwdqc04, ilwdqc05, ilwdqc06, ilwdqc07, ilwdqc08, ilwdqc09, ilwdqc10, ilwdqc11, ilwdqc12, ilwdqc13, ilwdqc14, ilwdqc15, ilwdqc20, incnam_1, info1t01, info1t02, info1t03, info1t04, info1t05, info1t06, info1t07, info1t08, info1t09, info1t10, info1t11, info1t13, info1t17, info2t01, info2t02, info2t03, info2t04, info2t05, info2t06, info2t07, info2t08, infoqc01, infoqc02, infoqc03, infoqc04, infoqc05, infoqc06, infoqc07, infoqc08, infoqc09, infoqc13, initrank, initcomp, initreg, initstat, initdesc, k_rel1, k_rel2, k_rel3, k_rel4, k_rel5, k_rel6, k_rel7, k_rel8, k_rel9, l_rel01, l_rel02, l_rel03, l_rel04, l_rel05, l_rel06, l_rel07, l_rel08, l_rel09, l_rel10, l_rel11, lsdys1_1, lsdys1_2, lsdys1_3, lsdys2_1, lsdys2_2, lsdys2_3, lsmth1_1, lsmth1_2, lsmth1_3, lsmth2_1, lsmth2_2, lsyrs1_1, lsyrs1_2, lsyrs1_3, lsyrs2_1, lsyrs2_2, lsyrs2_3, lstag1_1, lstag1_2, lstag1_3, lstag2_1, lstag2_2, lstag2_3, gen_enlistment_icpsr1_1, gen_enlistment_icpsr1_2, gen_enlistment_icpsr1_3, gen_enlistment_icpsr2_1, gen_enlistment_icpsr2_2, lscnt1_1, lscnt1_2, lscnt1_3, lscnt2_1, lscnt2_2, lscnt2_3, lstdt1_1, lstdt1_2, lstdt1_3, lstdt2_1, lstdt2_2, lstdt2_3, lsdqc1_1, lsdqc1_2, lsdqc1_3, lsdqc2_1, lsdqc2_2, lsdqc2_3, lstyp1_1, lstyp1_2, lstyp1_3, lstyp2_1, lstyp2_2, m_rel01, m_rel02, m_rel03, m_rel04, m_rel05, m_rel06, m_rel07, m_rel08, m_rel09, m_rel10, m_rel11, m_rel12, m_rel13, m_rel14, milcact1, milcact2, milcact3, milcact4, milcact5, milcrsn1, milcrsn2, milcrsn3, milcrsn4, milcrsn5, milctdt1, milctdt2, milctdt3, milctdt4, milctdt5, milctqc1, milctqc2, milctqc3, milctqc4, milctqc5, mildfdt1, mildfdt2, mildfdt3, mildfdt4, mildfdt5, mildfdt6, mildfqc1, mildfqc2, mildfqc3, mildfqc4, mildfqc5, mildfqc6, mildtdt1, mildtdt2, mildtdt3, mildtdt4, mildtdt5, mildtdt6, mildtqc1, mildtqc2, mildtqc3, mildtqc4, mildtqc5, mildtqc6, gen_mother_birthplace_icpsr, n_rel01, n_rel02, n_rel03, n_rel04, n_rel05, n_rel06, n_rel07, n_rel08, n_rel09, n_rel10, n_rel11, n_rel12, n_rel13, n_rel14, othrdt01, othrdt02, othrdt03, othrdt04, othrdt05, othrdt06, othrdt07, othrdt08, othrdt09, othrdt10, othrdt11, othrdt12, othrdt13, othrdt14, othrdt15, othrdt16, othrdt17, othrdt18, othrdt19, othrdt20, othrrn01, othrrn02, othrrn03, othrrn04, othrrn05, othrrn06, othrrn07, othrrn08, othrrn09, othrrn10, othrrn11, othrrn12, othrrn13, othrrn14, othrrn15, othrrn16, othrrn17, othrrn18, othrrn19, othrrn20, othrqc01, othrqc02, othrqc03, othrqc04, othrqc05, othrqc06, othrqc07, othrqc08, othrqc09, othrqc10, othrqc11, othrqc12, othrqc13, othrqc14, othrqc15, othrqc16, othrqc18, othrqc19
+from 
+( 
+select *
+from mil
+full outer join dis on mil.recidnum = dis.recidnum
+full outer join msr on msr.recidnum = coalesce(mil.recidnum, dis.recidnum)
+full outer join cen on cen.recidnum = coalesce(mil.recidnum, dis.recidnum, msr.recidnum)
+full outer join cmr on cmr.recidnum = coalesce(mil.recidnum, dis.recidnum, msr.recidnum, cen.recidnum) 
+)
+
+as full_data1;
+
+```
+
+Chunk 2:a
+
+```{sql connection=con, output.var="full_data2"}
+
+select distinct 
+recidnum, p_bre1, p_bre2, p_bre3, p_bre4, p_bre5, p_bre6, pb_frq11, pb_frq12, pb_frq13, pb_frq14, pb_frq21, pb_frq22, pb_frq23, pb_frq24, pb_frq25, pb_frq31, pb_frq32, pb_frq33, pb_frq41, pb_frq42, pb_frq51, pb_frq61, p_cmt1, p_cmt2, p_cmt3, p_cmt4, p_cmt5, p_cmt6, p_cough, pc_ds1, pc_ds2, pc_ds3, pc_ds4, pc_ds5, pc_ds6, pc_ds7, pc_ds8, pc_fr1, pc_fr2, pc_fr3, pc_fr4, pc_fr5, pc_fr6, p_dull, pd_wh01, pd_wh02, pd_wh03, pd_wh04, pd_wh05, pd_wh06, pd_wh07, p_lrs1, p_lrs2, p_lrs3, p_lrs4, p_lrs5, p_lrs6, p_lrs7, pl_frq11, pl_frq12, pl_frq13, pl_frq14, pl_frq15, pl_frq16, pl_frq21, pl_frq22, pl_frq23, pl_frq31, pl_frq32, pl_frq33, pl_frq41, pl_frq42, pl_frq51, pl_frq52, pl_frq61, p_rel01, p_rel02, p_rel03, p_rel04, p_rel05, p_rel06, p_rel07, p_rel08, p_rel09, p_rel10, p_rel11, p_rel12, p_rel13, p_rel14, p_rel15, p_rel16, p_snd01, p_snd02, p_snd03, p_snd04, p_snd05, p_snd06, p_snd07, p_snd08, p_snd09, p_snd10, p_snd11, p_snd12, p_snd13, p_snd14, p_urs01, p_urs02, p_urs03, p_urs04, p_urs05, p_urs06, p_urs07, p_urs08, p_urs09, p_urs10, p_urs11, p_urs12, p_urs13, p_urs14, p_urs15, p_urs16, p_urs17, p_urs18, p_urs19, p_urs20, p_urs21, p_urs22, p_urs23, p_urs24, p_urs25, p_urs26, q_rel01, q_rel02, q_rel03, q_rel04, q_rel05, q_rel06, q_rel07, q_rel08, q_rel09, q_rel10, q_rel11, q_rel12, q_rel13, q_rel14, r_city01, r_city02, r_city03, r_city04, r_city05, r_city06, r_city07, r_city08, r_city09, r_city10, r_city11, r_city12, r_city13, r_city14, r_city15, r_cnty01, r_cnty02, r_cnty03, r_cnty04, r_cnty05, r_cnty06, r_cnty07, r_cnty08, r_cnty09, r_cnty10, r_cnty11, r_cnty12, r_cnty13, r_cnty14, r_cnty15, gen_r_cnty_icpsr01, gen_r_cnty_icpsr02, gen_r_cnty_icpsr03, gen_r_cnty_icpsr04, gen_r_cnty_icpsr05, gen_r_cnty_icpsr06, gen_r_cnty_icpsr07, gen_r_cnty_icpsr08, gen_r_cnty_icpsr09, gen_r_cnty_icpsr10, gen_r_cnty_icpsr11, gen_r_cnty_icpsr12, gen_r_cnty_icpsr13, gen_r_cnty_icpsr14, gen_r_cnty_icpsr15, r_fdqc01, r_fdqc02, r_fdqc03, r_fdqc04, r_fdqc05, r_fdqc06, r_fdqc07, r_fdqc08, r_fdqc09, r_fdqc10, r_fdqc11, r_fdqc12, r_fdqc13, r_fdqc14, r_fdqc15, r_fmdt01, r_fmdt02, r_fmdt03, r_fmdt04, r_fmdt05, r_fmdt06, r_fmdt07, r_fmdt08, r_fmdt09, r_fmdt10, r_fmdt11, r_fmdt12, r_fmdt13, r_fmdt14, r_fmdt15, r_rel01, r_rel02, r_rel03, r_rel04, r_rel05, r_rel06, r_rel07, r_rel08, r_rel09, r_rel10, r_rel11, r_rel12, r_rel13, r_rel14, r_rel15, r_rel16, r_stat01, r_stat02, r_stat03, r_stat04, r_stat05, r_stat06, r_stat07, r_stat08, r_stat09, r_stat10, r_stat11, r_stat12, r_stat13, r_stat14, r_stat15, gen_residence_icpsr01, gen_residence_icpsr02, gen_residence_icpsr03, gen_residence_icpsr04, gen_residence_icpsr05, gen_residence_icpsr06, gen_residence_icpsr07, gen_residence_icpsr08, gen_residence_icpsr09, gen_residence_icpsr10, gen_residence_icpsr11, gen_residence_icpsr12, gen_residence_icpsr13, gen_residence_icpsr14, gen_residence_icpsr15, r_todt01, r_todt02, r_todt03, r_todt04, r_todt05, r_todt06, r_todt07, r_todt08, r_todt09, r_todt10, r_todt11, r_todt12, r_todt13, r_todt14, r_todt15, rb_city1, rb_city2, rb_cnty1, rb_cnty2, gen_rb_cnty_icpsr1, gen_rb_cnty_icpsr2, rb_date1, rb_date2, rb_dtqc1, rb_dtqc2, rb_plqc1, rb_plqc2, rb_stat1, rb_stat2, gen_birthplace_icpsr1, gen_birthplace_icpsr2, rd_bdtqc, rd_bgdt, rd_cause, rd_cbdqc, rd_cbgdt, rd_ccaus, rd_city, rd_cnty, gen_rd_cnty_icpsr, rd_stat, gen_rd_stat_icpsr, rd_date, rd_dtqc, rd_illdy, rd_illmn, rd_illyr, rd_plqc, rd_stype, recabd_0, recabd_1, recage_5, recage_6, recbpl_5, recbpl_6, recbpl_0, recbpl_1, recbyr_0, recbmo_0, recfbp_0, recfbp_1, recmbp_0, recmbp_1, recnam_5, recnam_6, recnam_0, recnam_1, recname1, recname2, recname3, recname4, recname5, recname6, recname7, recname8, recocc_5, recocc_6, recocc_0, recocc_1, gen_recocb_5, gen_recocb_6, gen_recocb_0, gen_recocb_1, gen_recocd_5, gen_recocd_6, gen_recocd_0, gen_recocd_1, gen_recocn_5, gen_recocn_6, gen_recocn_0, gen_recocn_1, recrem_5, recrem_6, recrem_0, recrem_1, relsdt01, relsdt02, relsdt03, relsdt04, relsdt05, relsdt06, relsdt07, relsdt08, relsdt09, relsdt10, relsdt11, relsdt12, relsdt13, relsdt14, relsdt15, relsdt16, relsdt17, relsdt18, relsdt19, relsdt20, relsqc01, relsqc02, relsqc03, relsqc04, relsqc05, relsqc06, relsqc07, relsqc08, relsqc09, relsqc10, relsqc11, relsqc12, relsqc13, relsqc14, relsqc15, relsqc16, relsqc17, relsqc18, relsqc19, relsqc20, result01, result02, result03, result04, result05, result06, result07, result08, result09, result10, result11, result12, result13, result14, result15, result16, result17, result18, result19, result20, ri_entdt, ri_numyr, ro_fdt01, ro_fdt02, ro_fdt03, ro_fdt04, ro_fdt05, ro_fdt06, ro_fdt07, ro_fdt08, ro_fdt09, ro_fdt10, ro_fqc01, ro_fqc02, ro_fqc03, ro_fqc04, ro_fqc05, ro_fqc06, ro_fqc07, ro_fqc08, ro_fqc09, ro_fqc10, ro_job01, ro_job02, ro_job03, ro_job04, ro_job05, ro_job06, ro_job07, ro_job08, ro_job09, ro_job10, gen_ro_jcd01, gen_ro_jcd02, gen_ro_jcd03, gen_ro_jcd04, gen_ro_jcd05, gen_ro_jcd06, gen_ro_jcd07, gen_ro_jcd08, gen_ro_jcd09, gen_ro_jcd10, ro_tdt01, ro_tdt02, ro_tdt03, ro_tdt04, ro_tdt05, ro_tdt06, ro_tdt07, ro_tdt08, ro_tdt09, ro_tdt10, ro_tqc01, ro_tqc02, ro_tqc03, ro_tqc04, ro_tqc05, ro_tqc06, ro_tqc07, ro_tqc08, ro_tqc09, ro_tqc10, rtnddt01, rtnddt02, rtnddt03, rtnddt04, rtnddt05, rtnddt06, rtnddt07, rtnddt08, rtnddt09, rtnddt10, rtnddt11, rtnddt12, rtnddt13, rtnddt14, rtnddt15, rtnddt16, rtnddt17, rtnddt18, rtnddt19, rtnddt20, rtndpl01, rtndpl02, rtndpl03, rtndpl04, rtndpl05, rtndpl06, rtndpl07, rtndpl08, rtndpl09, rtndpl10, rtndpl11, rtndpl12, rtndpl13, rtndpl14, rtndpl15, rtndpl16, rtndpl17, rtndpl18, rtndpl20, rtndqc01, rtndqc02, rtndqc03, rtndqc04, rtndqc05, rtndqc06, rtndqc07, rtndqc08, rtndqc09, rtndqc10, rtndqc11, rtndqc12, rtndqc13, rtndqc14, rtndqc15, rtndqc16, rtndqc17, rtndqc18, rtndqc19, rw_amt01, rw_amt02, rw_amt03, rw_amt04, rw_amt05, rw_amt06, rw_amt07, rw_amt08, rw_amt09, rw_amt10, rw_amt11, rw_amt12, rw_amt13, rw_amt14, rw_amt15, rw_des01, rw_des02, rw_des03, rw_des04, rw_des05, rw_des06, rw_des07, rw_des08, rw_des09, rw_des10, rw_des11, rw_des12, rw_des13, rw_des14, rw_des15, rw_ind01, rw_ind02, rw_ind03, rw_ind04, rw_ind05, rw_ind06, rw_ind07, rw_ind08, rw_ind09, rw_ind10, rw_ind11, rw_ind12, rw_ind13, rw_ind14, rw_ind15, rw_inf01, rw_inf02, rw_inf03, rw_inf04, rw_inf05, rw_inf06, rw_inf07, rw_inf08, rw_inf09, rw_inf10, rw_inf11, rw_inf12, rw_inf13, rw_inf14, rw_inf15, rw_ins01, rw_ins02, rw_ins03, rw_ins04, rw_ins05, rw_ins06, rw_ins07, rw_ins08, rw_ins09, rw_ins10, rw_ins11, rw_ins12, rw_ins13, rw_ins14, rw_ins15, rw_iqc01, rw_iqc02, rw_iqc03, rw_iqc04, rw_iqc05, rw_iqc06, rw_iqc07, rw_iqc08, rw_iqc09, rw_iqc10, rw_iqc11, rw_iqc12, rw_iqc13, rw_iqc14, rw_iqc15, sc1rmks, sc2rmks, sc3rmks, sc4rmk01, sc4rmk02, sc4rmk03, sc5rmks, sc6rmk01, sc6rmk02, sc6rmk03, sc6rmk04, sc6rmk05, sc6rmk06, sc6rmk07, sc6rmk08, sc6rmk09, sc6rmk10, stghdt01, stghdt02, stghdt03, stghdt04, stghdt05, stghdt06, stghdt07, stghdt08, stghdt09, stghdt10, stghdt11, stghdt12, stghdt13, stghdt14, stghdt15, stghdt16, stghdt17, stghdt18, stghdt19, stghdt20, unftc1_1, unftc1_2, unftc1_3, unftc2_1, unftc2_2, unftc2_3, unftd1_1, unftd1_2, unftd1_3, unftd2_1, unftd2_2, x_ext11, x_ext12, x_ext13, x_ext14, x_ext21, x_ext22, x_ext23, x_ext24, x_ext31, x_ext32, x_ext33, x_ext34, x_ext41, x_ext42, x_ext43
+from
+(
+  select *
+  from mil
+  full outer join dis on mil.recidnum = dis.recidnum
+  full outer join msr
+    on msr.recidnum = coalesce(mil.recidnum, dis.recidnum)
+  full outer join cen
+    on cen.recidnum = coalesce(mil.recidnum, dis.recidnum, msr.recidnum)
+  full outer join cmr
+    on cmr.recidnum = coalesce(mil.recidnum, dis.recidnum, msr.recidnum, cen.recidnum)
+)
+as full_data2;
+
+```
+
+Checking for empty columns + removing from full_data[1-2]
+
+```{r}
+
+# dplyr
+
+full_data1 %>%
+  select(where(~ all(is.na(.) | . == ""))) %>%
+  names()
+
+# "gen_a_occod3" "gen_a_occod4" "gen_a_occod5" "afdesc12"     "afdesc14"    "afdesc15"     "afdesc16"     "afdesc18"     "afdesc19"     "afdesc20"     "afdvdt12"     "afdvdt14"    "afdvdt15"     "afdvdt16"     "afdvdt18"     "afdvdt19"     "afdvqc08"     "afdvqc09"     "afdvqc10"    "afdvqc11"     "afdvqc12"     "afdvqc13"     "afdvqc14"     "afdvqc15"     "afdvqc16"     "afdvqc17"    "afdvqc18"     "afdvqc19"     "afdvqc20"     "dponet12"     "dponet14"     "dponet15"     "dponet16"    "dponet18"     "dschqc17"     "dschqc18"     "dschqc19"     "dthqc19"      "i_eff319"     "i_eff320"    "i_eff321"     "i_eff322"     "i_eff323"     "i_eff324"     "i_eff325"     "i_whr14"      "ilwdqc16"    "ilwdqc17"     "ilwdqc18"     "ilwdqc19"     "info1t12"     "info1t14"     "info1t15"     "info1t16"    "info1t18"     "info1t19"     "info1t20"     "info2t09"     "info2t10"     "info2t11"     "info2t12"    "info2t13"     "info2t14"     "info2t15"     "info2t16"     "info2t17"     "info2t18"     "info2t19"    "info2t20"     "infoqc10"     "infoqc11"     "infoqc12"     "infoqc14"     "infoqc15"     "infoqc16"    "infoqc17"     "infoqc18"     "infoqc19"     "infoqc20"     "lsmth2_3"     "lstyp2_3"     "othrqc17"    "othrqc20"
+
+
+full_data2 %>%
+  select(where(~ all(is.na(.) | . == ""))) %>%
+  names()
+
+# "pb_frq15" "rtndpl19" "rtndqc20" "unftd2_3"
+
+
+```
+
+Isolating all TB-affected individuals from each chunk
+
+```{r}
+
+# retrieving names of all columns with substring 'TUBER'
+
+tb_col1 <- sapply(full_data1, function(col) any(grepl('TUBER', col)))
+names(full_data1)[tb_col1]
+
+# "a_brtcnt"          "a_clm01"           "a_clm02"           "a_clm03"           "a_clm04"           "a_clm05"          "a_clm07"           "a_clm08"           "a_clst01"          "a_clst02"          "a_clst07"          "afdesc01"         "afdesc02"          "afdesc07"          "dschrn01"          "dschrn02"          "dschrn03"          "dschrn04"         "dschrn05"          "dschrn06"          "dschrn07"          "dschrn08"          "dschrn09"          "dschrn10"         "dschrn11"          "dschrn12"          "dschrn13"          "dschrn14"          "dschrn16"          "dschrn19"         "dschrn20"          "dthcs01"           "dthcs02"           "dthcs03"           "dthcs04"           "dthcs05"          "dthcs06"           "dthcs07"           "dthcs08"           "dthcs09"           "dthcs10"           "dthcs12"          "dthcs16"           "dthcs18"           "gen_rd_cause_6icd" "i_cmt2"            "i_eff101"          "i_eff102"         "i_eff103"          "i_eff104"          "i_eff107"          "i_eff201"          "i_fev1"            "i_fev2"           "i_rel101"          "i_rel102"          "ilwdsc01"          "ilwdsc02"          "ilwdsc03"          "ilwdsc04"         "ilwdsc05"          "ilwdsc06"          "ilwdsc07"          "ilwdsc08"          "ilwdsc09"          "ilwdsc10"         "ilwdsc11"          "ilwdsc12"          "ilwdsc13"          "ilwdsc14"          "ilwdsc15"          "ilwdsc16"         "ilwdsc17"          "ilwdsc18"          "ilwdsc19"          "ilwdsc20"          "othrrn01"          "othrrn02"
+
+tb_col2 <- sapply(full_data2, function(col) any(grepl('TUBER', col)))
+names(full_data2)[tb_col2]
+
+#"p_cmt1"   "p_cmt2"   "p_cmt3"   "p_cmt5"   "pc_ds1"   "pc_ds2"   "pc_ds3"   "p_lrs1"   "p_lrs2"   "p_lrs3"   "p_lrs4"  "p_lrs5"   "p_lrs7"   "p_rel01"  "p_rel02"  "r_cnty08" "rb_city1" "rb_cnty1" "rd_cause" "rd_ccaus" "recnam_6" "recname1" "recname2" "result01" "result02" "result03" "result04" "result05" "result06" "result08" "result11" "sc1rmks"  "sc2rmks"  "sc4rmk01" "sc6rmk01" "sc6rmk02" "sc6rmk03" "sc6rmk04" "sc6rmk05" "sc6rmk08" "unftc1_1" "unftc1_2" "unftc1_3" "unftc2_1" "x_ext11"  "x_ext21"  "x_ext41"
+
+
+dbListTables(con)
+
+##### Combine all rows w same recidnum
+
+setDT(full_data1)
+setDT(full_data2)
+
+
+full_data1 <- full_data1[, lapply(.SD, function(x) na.omit(x)[1]), by = recidnum]
+
+full_data2 <- full_data2[, lapply(.SD, function(x) na.omit(x)[1]), by = recidnum]
+
+
+duckdb::duckdb_register(con, "full_data1", full_data1, %>% mutate(recidnum = as.character(recidnum)))
+
+
+
+
+```
+
+Combining everything in SQL for TB cohort:
+
+from
+
+(
+
+select \*
+
+from full_data1
+
+full join full_data2 on full_data1.recidnum = full_data2.recidnum
+
+)
+
+as tb
+
+```{sql connection=con, output.var="tb"}
+
+
+select distinct *
+/* 
+
+Recruit ID/Name
+
+Age/Birth:
+a_age as a.age
+a_ageqc as a.ageqc
+ageinj as a.inj
+lstag as a.lst
+recabd as a.rbd
+recage as a.rcag
+### pension bpl ###
+a_brtcnt as b.cnt
+a_brtcty as b.cty
+a_brthqc as b.cqc
+a_brthst as b.st
+gen_claimant_birthplace_icpsr b.clpl.icpsr
+### rec bpl ###
+gen_rb_cnty_icpsr b.rcnt.icpsr
+gen_rb_stat_icpsr b.rst.icpsr
+gen_birthplace_icpsr b.pl.icpsr
+
+
+Death
+
+
+Geography
+
+Enlistment
+
+Discharge
+
+Employment
+
+Hospital Admit
+
+Respiratory Illness
+
+Service Info
+
+Extra Info
+
+*/
+
+from 
+(
+  select *
+  from full_data1
+  full join full_data2 on full_data1.recidnum = full_data2.recidnum
+)
+as tb
+
+WHERE REGEXP_MATCHES(a_brtcnt,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(a_clm01,   'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(a_clm02,   'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(a_clm03,   'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(a_clm04,   'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(a_clm05,   'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(a_clm07,   'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(a_clm08,   'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(a_clst01,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(a_clst02,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(a_clst07,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(afdesc01,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(afdesc02,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(afdesc07,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(dschrn01,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(dschrn02,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(dschrn03,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(dschrn04,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(dschrn05,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(dschrn07,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(dschrn08,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(dschrn09,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(dschrn10,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(dschrn11,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(dschrn12,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(dschrn13,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(dschrn14,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(dschrn16,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(dschrn19,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(dschrn20,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(dthcs01,   'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(dthcs02,   'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(dthcs03,   'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(dthcs04,   'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(dthcs05,   'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(dthcs06,   'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(dthcs07,   'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(dthcs08,   'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(dthcs09,   'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(dthcs10,   'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(dthcs12,   'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(dthcs16,   'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(dthcs18,   'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(gen_rd_cause_6icd, 'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(g_rel01,   'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(g_rel02,   'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(g_rel06,   'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(g_rel07,   'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(i_cmt2,    'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(i_eff101,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(i_eff102,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(i_eff103,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(i_eff104,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(i_eff107,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(i_eff201,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(i_fev1,    'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(i_fev2,    'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(i_rel101,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(i_rel102,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(ilwdsc01,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(ilwdsc02,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(ilwdsc03,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(ilwdsc04,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(ilwdsc05,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(ilwdsc06,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(ilwdsc07,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(ilwdsc08,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(ilwdsc09,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(ilwdsc10,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(ilwdsc11,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(ilwdsc12,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(ilwdsc13,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(ilwdsc14,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(ilwdsc15,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(ilwdsc16,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(ilwdsc17,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(ilwdsc18,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(ilwdsc19,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(ilwdsc20,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(l_rel01,   'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(m_rel01,   'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(n_rel01,   'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(othrrn01,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(othrrn02,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(p_cmt1,    'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(p_cmt2,    'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(p_cmt3,    'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(p_cmt5,    'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(pc_ds1,    'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(pc_ds2,    'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(pc_ds3,    'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(p_lrs1,    'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(p_lrs2,    'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(p_lrs3,    'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(p_lrs4,    'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(p_lrs5,    'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(p_lrs7,    'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(p_rel01,   'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(p_rel02,   'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(q_rel01,   'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(rd_cause,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(rd_ccaus,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(result01,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(result02,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(result03,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(result04,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(result05,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(result06,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(result08,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(result11,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(sc1rmks,   'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(sc2rmks,   'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(sc4rmk01,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(sc6rmk01,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(sc6rmk02,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(sc6rmk03,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(sc6rmk04,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(sc6rmk05,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(sc6rmk08,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(unftc1_1,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(unftc1_2,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(unftc1_3,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(unftc2_1,  'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(x_ext11,   'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(x_ext21,   'TUBER|CONSUMP|PHTH')
+  OR REGEXP_MATCHES(x_ext41,   'TUBER|CONSUMP|PHTH');
+
+
+
+```
+
+```{r}
+
+duckdb::duckdb_register(con, "tb", tb, %>% mutate(recidnum = as.character(recidnum)))
+
+```
+
+Combining everything in SQL for NON-TB cohort:
+
+```{sql connection=con, output.var="ntb"}
+
+SELECT *
+FROM (
+  select *
+  from full_data1
+  full join full_data2 on full_data1.recidnum = full_data2.recidnum
+)
+WHERE recidnum NOT IN (
+  SELECT DISTINCT recidnum
+  FROM tb
+);
+
+
+```
+
+Removing all empty rows:
+
+```{r}
+
+tb %>%
+  select(where(~ all(is.na(.) | . == ""))) %>%
+  names()
+
+#"a_clst11" "a_clst12" "a_dis16" "a_dis17" "a_dis18" "a_dis19" "a_dis20" "a_dis21" "a_dis22" "a_mlsta4" "a_mlsta5" "a_occqc2" "a_ocdsc3" "gen_a_ococn4" "gen_a_ococn5" "a_ocpat4" "a_ocpat5" "gen_a_ococd4" "gen_a_ococd5" "afdesc08" "afdesc09" "afdesc10" "afdesc11" "afdesc13" "afdvdt08" "afdvdt09" "afdvdt10" "afdvdt11" "afdvdt13" "afdvdt17" "afdvdt20" "afdvqc03" "afdvqc05" "afdvqc06" "c_rel08" "c_rel09" "c_rel10" "c_rel11" "c_rel12" "c_rel13" "c_rel14" "cd_whn3" "cd_whn4" "cd_whn5" "dponet08" "dponet09" "dponet10" "dponet11" "dponet13" "dponet19" "dponet20" "dschqc10" "dschqc13" "dschqc20" "dthcs14" "dthcs15" "dthdt15" "dthqc09" "dthqc11" "dthqc12" "dthqc13" "dthqc14" "dthqc15" "dthqc16" "dthqc20" "g_rel08" "g_rel09" "g_rel10" "g_rel11" "g_rel12" "g_rel13" "g_rel14" "g_rel15" "g_rel16" "h_rel106" "h_rel107" "h_rel108" "h_rel109" "h_rel110" "h_rel111" "h_rel203" "h_rel204" "h_rel205" "h_rel206" "h_rel207" "h_rel208" "h_rel209" "h_rel210" "h_rel301" "h_rel302" "h_rel303" "h_rel304" "h_rel401" "h_rel402" "h_rel403" "i_cmt3" "i_cur3" "i_cur4" "i_eff121" "i_eff122" "i_eff123" "i_eff124" "i_eff125" "i_eff126" "i_eff203" "i_eff204" "i_eff205" "i_eff206" "i_eff207" "i_eff208" "i_eff209" "i_eff210" "i_eff211" "i_eff212" "i_eff213" "i_eff214" "i_eff215" "i_eff216" "i_eff217" "i_eff218" "i_eff219" "i_eff220" "i_eff221" "i_eff222" "i_eff223" "i_eff224" "i_eff301" "i_eff302" "i_eff303" "i_eff304" "i_eff305" "i_eff306" "i_eff307" "i_eff308" "i_eff309" "i_eff310" "i_eff311" "i_eff312" "i_eff313" "i_eff314" "i_eff315" "i_eff316" "i_eff317" "i_eff318" "i_eff401" "i_eff402" "i_eff403" "i_eff404" "i_eff405" "i_fev4" "i_fev5" "i_rel111" "i_rel112" "i_rel113" "i_rel114" "i_rel115" "i_rel116" "i_rel208" "i_rel209" "i_rel301" "i_rel302" "i_rel303" "i_rel304" "i_rel305" "i_rel306" "i_rel401" "i_rel402" "i_rel403" "i_whn12" "i_whn13" "i_whn22" "i_whn31" "i_whn41" "i_whr12" "i_whr13" "i_whr21" "i_whr31" "ilwdqc06" "ilwdqc08" "ilwdqc09" "ilwdqc10" "ilwdqc11" "ilwdqc12" "ilwdqc13" "ilwdqc20" "info1t08" "info1t09" "info1t10" "info1t11" "info1t13" "info1t17" "info2t04" "info2t07" "info2t08" "infoqc07" "infoqc08" "infoqc09" "infoqc13" "k_rel6" "k_rel7" "k_rel8" "k_rel9" "l_rel07" "l_rel08" "l_rel09" "l_rel10" "l_rel11" "lsdys1_3" "lsdys2_1" "lsdys2_2" "lsdys2_3" "lsmth2_1" "lsyrs2_3" "lscnt2_3" "m_rel08" "m_rel09" "m_rel10" "m_rel11" "m_rel12" "m_rel13" "m_rel14" "n_rel07" "n_rel08" "n_rel09" "n_rel10" "n_rel11" "n_rel12" "n_rel13" "n_rel14" "othrrn19" "othrqc07" "othrqc08" "othrqc10" "othrqc11" "othrqc13" "othrqc14" "othrqc15" "othrqc18" "othrqc19" "p_bre6" "pb_frq14" "pb_frq23" "pb_frq24" "pb_frq25" "pb_frq32" "pb_frq33" "pb_frq41" "pb_frq42" "pb_frq51" "pb_frq61" "p_cmt6" "pc_ds7" "pc_ds8" "pc_fr6" "p_lrs6" "p_lrs7" "pl_frq13" "pl_frq14" "pl_frq15" "pl_frq16" "pl_frq22" "pl_frq23" "pl_frq32" "pl_frq33" "pl_frq42" "pl_frq51" "pl_frq52" "pl_frq61" "p_rel11" "p_rel12" "p_rel13" "p_rel14" "p_rel15" "p_rel16" "p_snd10" "p_snd11" "p_snd12" "p_snd13" "p_snd14" "p_urs15" "p_urs16" "p_urs17" "p_urs18" "p_urs19" "p_urs20" "p_urs21" "p_urs22" "p_urs23" "p_urs24" "p_urs25" "p_urs26" "q_rel09" "q_rel10" "q_rel11" "q_rel12" "q_rel13" "q_rel14" "r_rel10" "r_rel11" "r_rel12" "r_rel13" "r_rel14" "r_rel15" "r_rel16" "result20" "ro_tdt10" "ro_tqc10" "rtndpl12" "rtndpl14" "rtndpl15" "rtndpl17" "rtndpl18" "rtndpl20" "rtndqc12" "rtndqc15" "rtndqc17" "rtndqc19" "rw_amt15" "rw_des15" "rw_ind15" "rw_inf15" "rw_ins15" "rw_iqc09" "rw_iqc10" "rw_iqc11" "rw_iqc12" "rw_iqc13" "rw_iqc14" "rw_iqc15" "unftc2_2" "unftc2_3" "unftd2_2" "x_ext13" "x_ext14" "x_ext23" "x_ext24" "x_ext32" "x_ext33" "x_ext34" "x_ext42" "x_ext43"
+
+empty <- c("a_clst11", "a_clst12", "a_dis16", "a_dis17", "a_dis18", "a_dis19", "a_dis20", "a_dis21", "a_dis22", "a_mlsta4", "a_mlsta5", "a_occqc2", "a_ocdsc3", "gen_a_ococn4", "gen_a_ococn5", "a_ocpat4", "a_ocpat5", "gen_a_ococd4", "gen_a_ococd5", "afdesc08", "afdesc09", "afdesc10", "afdesc11", "afdesc13", "afdvdt08", "afdvdt09", "afdvdt10", "afdvdt11", "afdvdt13", "afdvdt17", "afdvdt20", "afdvqc03", "afdvqc05", "afdvqc06", "c_rel08", "c_rel09", "c_rel10", "c_rel11", "c_rel12", "c_rel13", "c_rel14", "cd_whn3", "cd_whn4", "cd_whn5", "dponet08", "dponet09", "dponet10", "dponet11", "dponet13", "dponet19", "dponet20", "dschqc10", "dschqc13", "dschqc20", "dthcs14", "dthcs15", "dthdt15", "dthqc09", "dthqc11", "dthqc12", "dthqc13", "dthqc14", "dthqc15", "dthqc16", "dthqc20", "g_rel08", "g_rel09", "g_rel10", "g_rel11", "g_rel12", "g_rel13", "g_rel14", "g_rel15", "g_rel16", "h_rel106", "h_rel107", "h_rel108", "h_rel109", "h_rel110", "h_rel111", "h_rel203", "h_rel204", "h_rel205", "h_rel206", "h_rel207", "h_rel208", "h_rel209", "h_rel210", "h_rel301", "h_rel302", "h_rel303", "h_rel304", "h_rel401", "h_rel402", "h_rel403", "i_cmt3", "i_cur3", "i_cur4", "i_eff121", "i_eff122", "i_eff123", "i_eff124", "i_eff125", "i_eff126", "i_eff203", "i_eff204", "i_eff205", "i_eff206", "i_eff207", "i_eff208", "i_eff209", "i_eff210", "i_eff211", "i_eff212", "i_eff213", "i_eff214", "i_eff215", "i_eff216", "i_eff217", "i_eff218", "i_eff219", "i_eff220", "i_eff221", "i_eff222", "i_eff223", "i_eff224", "i_eff301", "i_eff302", "i_eff303", "i_eff304", "i_eff305", "i_eff306", "i_eff307", "i_eff308", "i_eff309", "i_eff310", "i_eff311", "i_eff312", "i_eff313", "i_eff314", "i_eff315", "i_eff316", "i_eff317", "i_eff318", "i_eff401", "i_eff402", "i_eff403", "i_eff404", "i_eff405", "i_fev4", "i_fev5", "i_rel111", "i_rel112", "i_rel113", "i_rel114", "i_rel115", "i_rel116", "i_rel208", "i_rel209", "i_rel301", "i_rel302", "i_rel303", "i_rel304", "i_rel305", "i_rel306", "i_rel401", "i_rel402", "i_rel403", "i_whn12", "i_whn13", "i_whn22", "i_whn31", "i_whn41", "i_whr12", "i_whr13", "i_whr21", "i_whr31", "ilwdqc06", "ilwdqc08", "ilwdqc09", "ilwdqc10", "ilwdqc11", "ilwdqc12", "ilwdqc13", "ilwdqc20", "info1t08", "info1t09", "info1t10", "info1t11", "info1t13", "info1t17", "info2t04", "info2t07", "info2t08", "infoqc07", "infoqc08", "infoqc09", "infoqc13", "k_rel6", "k_rel7", "k_rel8", "k_rel9", "l_rel07", "l_rel08", "l_rel09", "l_rel10", "l_rel11", "lsdys1_3", "lsdys2_1", "lsdys2_2", "lsdys2_3", "lsmth2_1", "lsyrs2_3", "lscnt2_3", "m_rel08", "m_rel09", "m_rel10", "m_rel11", "m_rel12", "m_rel13", "m_rel14", "n_rel07", "n_rel08", "n_rel09", "n_rel10", "n_rel11", "n_rel12", "n_rel13", "n_rel14", "othrrn19", "othrqc07", "othrqc08", "othrqc10", "othrqc11", "othrqc13", "othrqc14", "othrqc15", "othrqc18", "othrqc19", "p_bre6", "pb_frq14", "pb_frq23", "pb_frq24", "pb_frq25", "pb_frq32", "pb_frq33", "pb_frq41", "pb_frq42", "pb_frq51", "pb_frq61", "p_cmt6", "pc_ds7", "pc_ds8", "pc_fr6", "p_lrs6", "p_lrs7", "pl_frq13", "pl_frq14", "pl_frq15", "pl_frq16", "pl_frq22", "pl_frq23", "pl_frq32", "pl_frq33", "pl_frq42", "pl_frq51", "pl_frq52", "pl_frq61", "p_rel11", "p_rel12", "p_rel13", "p_rel14", "p_rel15", "p_rel16", "p_snd10", "p_snd11", "p_snd12", "p_snd13", "p_snd14", "p_urs15", "p_urs16", "p_urs17", "p_urs18", "p_urs19", "p_urs20", "p_urs21", "p_urs22", "p_urs23", "p_urs24", "p_urs25", "p_urs26", "q_rel09", "q_rel10", "q_rel11", "q_rel12", "q_rel13", "q_rel14", "r_rel10", "r_rel11", "r_rel12", "r_rel13", "r_rel14", "r_rel15", "r_rel16", "result20", "ro_tdt10", "ro_tqc10", "rtndpl12", "rtndpl14", "rtndpl15", "rtndpl17", "rtndpl18", "rtndpl20", "rtndqc12", "rtndqc15", "rtndqc17", "rtndqc19", "rw_amt15", "rw_des15", "rw_ind15", "rw_inf15", "rw_ins15", "rw_iqc09", "rw_iqc10", "rw_iqc11", "rw_iqc12", "rw_iqc13", "rw_iqc14", "rw_iqc15", "unftc2_2", "unftc2_3", "unftd2_2", "x_ext13", "x_ext14", "x_ext23", "x_ext24", "x_ext32", "x_ext33", "x_ext34", "x_ext42", "x_ext43")
+
+tb <- tb %>% select(-all_of(empty))
+
+
+ntb %>%
+  select(where(~ all(is.na(.) | . == ""))) %>%
+  names()
+
+
+```
+
+# Cleaning Birth Year and Death Year, finding Age at Death
+
+Birth Year
+
+```{r}
+
+#################################### TB Cohort ######################################
+
+################## Create Dataframe w all age/date variables
+
+tb_birth <- all %>%
+  select(
+    rb_date1, rb_date2, rb_dtqc1, rb_dtqc2,
+    recbyr_0, a_xmdate, a_xmdtqc, a_age, a_ageqc,
+    lstag1_1, lstag1_2, lstag1_3,
+    lstag2_1, lstag2_2, lstag2_3,
+    lstdt1_1, lstdt1_2, lstdt1_3,
+    lstdt2_1, lstdt2_2, lstdt2_3,
+    lsdqc1_1, lsdqc1_2, lsdqc1_3,
+    lsdqc2_1, lsdqc2_2, lsdqc2_3,
+    recage_5, recage_6, recabd_0, recabd_1
+  ) %>%
+as.data.frame()
+
+
+tb_birth$YEAR <-
+  ifelse(                                                                 #if census, census
+    !is.na(tb_birth[,5]) & tb_birth[,5] !="" & tb_birth[,5] <2000,
+    tb_birth[,5],
+    ifelse(                     
+      !is.na(tb_birth[,30]) & tb_birth[,30] !="" & tb_birth[,30] <110,
+      (1900 - as.numeric(tb_birth[,30])),
+      ifelse(
+        !is.na(tb_birth[,31]) & tb_birth[,31] !="" & tb_birth[,31] <110,
+        (1910 - as.numeric(tb_birth[,31])),
+        ifelse(                                                       
+          !is.na(tb_birth[,29]) & tb_birth[,29] !="" & tb_birth[,29] <110,
+          (1860 - as.numeric(tb_birth[,29])),
+          ifelse(  
+            !is.na(tb_birth[,28]) & tb_birth[,28] !="" & tb_birth[,28] <110,
+            (1850 - as.numeric(tb_birth[,28])),
+            ifelse(                                                
+              !is.na(tb_birth[,6]) & tb_birth[6] !="",                      
+              (as.numeric(substr(tb_birth[,6], 1, 4))-as.numeric(tb_birth[,8])),
+              ifelse(
+                  tb_birth[,3] == 'B',
+                  tb_birth[,1],
+                  ifelse(                                    #if code B, use rb_date2
+                    tb_birth[,4] == 'B',
+                    tb_birth[,2],
+                    tb_birth[,1]                             #if census n/a, use rb_date1
+                      
+))))))))
+
+
+
+x1_1 <- as.numeric(substr(tb_birth$lstdt1_1, 1, 4)) - tb_birth$lstag1_1
+x1_2 <- as.numeric(substr(tb_birth$lstdt1_2, 1, 4)) - tb_birth$lstag1_2
+x1_3 <- as.numeric(substr(tb_birth$lstdt1_3, 1, 4)) - tb_birth$lstag1_3
+x2_1 <- as.numeric(substr(tb_birth$lstdt2_1, 1, 4)) - tb_birth$lstag2_1
+x2_2 <- as.numeric(substr(tb_birth$lstdt2_2, 1, 4)) - tb_birth$lstag2_2
+x2_3 <- as.numeric(substr(tb_birth$lstdt2_3, 1, 4)) - tb_birth$lstag2_3
+
+tb_lst <- cbind(x1_1, x1_2, x1_3, x2_1, x2_2, x2_3)
+tb_lst <- as.data.frame(tb_lst)
+
+lst_tb_birth <- tb_birth %>%
+  filter(YEAR == "" | is.na(YEAR)) %>%
+  select(lstag1_1:lsdqc2_3)
+
+avg_tb_lst <- tb_lst %>%
+  mutate(across(where(is.character), as.numeric)) %>% 
+  mutate(row_mean = rowMeans(across(where(is.numeric)), na.rm = TRUE))
+
+tb_birth$YEAR <-
+ifelse(
+  tb_birth[,27] == 'B',
+  (as.numeric(substr(tb_birth[,21], 1, 4))-as.numeric(tb_birth[,15])),
+  ifelse(
+    tb_birth[,26] == 'B',
+    (as.numeric(substr(tb_birth[,20], 1, 4))-as.numeric(tb_birth[,14])),
+    ifelse(
+      tb_birth[,25] == 'B',
+      (as.numeric(substr(tb_birth[,19], 1, 4))-as.numeric(tb_birth[,13])),
+      ifelse(
+        tb_birth[,24] == 'B',
+        (as.numeric(substr(tb_birth[,18], 1, 4))-as.numeric(tb_birth[,12])),
+        ifelse(
+          tb_birth[,23] == 'B',
+          (as.numeric(substr(tb_birth[,17], 1, 4))-as.numeric(tb_birth[,11])),
+          ifelse(
+            tb_birth[,22] == 'B',
+            (as.numeric(substr(tb_birth[,16], 1, 4))-as.numeric(tb_birth[,10])),
+            ifelse(
+              !is.na(avg_tb_lst[,7]) & avg_tb_lst[,7] !="",
+              as.numeric(avg_tb_lst[,7]),
+              tb_birth[,1])
+))))))
+
+
+tb_birth$YEAR_cd <-
+  ifelse(                                                        #if census, census
+    !is.na(tb_birth[,5]) & tb_birth[,5] !="" & tb_birth[,5] <2000,
+    '0',
+    ifelse(                     
+      !is.na(tb_birth[,30]) & tb_birth[,30] !="" & tb_birth[,30] <110,
+      '0',
+      ifelse(
+        !is.na(tb_birth[,31]) & tb_birth[,31] !="" & tb_birth[,31] <110,
+        '0a',
+        ifelse(                                             #if code B, use rb_date1
+          !is.na(tb_birth[,29]) & tb_birth[,29] !="" & tb_birth[,29] <110,
+          '0b',
+          ifelse(  
+            !is.na(tb_birth[,28]) & tb_birth[,28] !="" & tb_birth[,28] <110,
+            '0c',
+            ifelse(                                                #age at last exam
+              !is.na(tb_birth[,6]) & tb_birth[6] !="",                      
+              '1',
+              ifelse(
+                tb_birth[,3] == 'B',
+                '2a',
+                ifelse(                                       #if code B, use rb_date2
+                  tb_birth[,4] == 'B',
+                  '2b',
+                  ifelse(
+                    tb_birth[,27] == 'B',
+                    '3a',
+                    ifelse(
+                      tb_birth[,26] == 'B',
+                      '3b',
+                      ifelse(
+                        tb_birth[,25] == 'B',
+                        '3c',
+                        ifelse(
+                          tb_birth[,24] == 'B',
+                          '3d',
+                          ifelse(
+                            tb_birth[,23] == 'B',
+                            '3e',
+                            ifelse(
+                              tb_birth[,22] == 'B',
+                              '3f',
+                              ifelse(
+                                !is.na(avg_tb_lst[,7]) & avg_tb_lst[,7] !="",
+                                '4',
+                                '5'                    #if census n/a, use rb_date1
+              
+    )))))))))))))))
+
+
+
+################################# Non-TB Cohort ####################################
+
+ntb_birth <- ntb %>%
+  select(
+    rb_date1, rb_date2, rb_dtqc1, rb_dtqc2,
+    recbyr_0, a_xmdate, a_xmdtqc, a_age, a_ageqc,
+    lstag1_1, lstag1_2, lstag1_3,
+    lstag2_1, lstag2_2, lstag2_3,
+    lstdt1_1, lstdt1_2, lstdt1_3,
+    lstdt2_1, lstdt2_2, lstdt2_3,
+    lsdqc1_1, lsdqc1_2, lsdqc1_3,
+    lsdqc2_1, lsdqc2_2, lsdqc2_3,
+    recage_5, recage_6, recabd_0, recabd_1
+  ) %>%
+as.data.frame()
+
+
+ntb_birth$YEAR <-
+  ifelse(                                                                 #if census, census
+    !is.na(ntb_birth[,5]) & ntb_birth[,5] !="" & ntb_birth[,5] <2000,
+    ntb_birth[,5],
+    ifelse(                     
+      !is.na(ntb_birth[,30]) & ntb_birth[,30] !="" & ntb_birth[,30] <110,
+      (1900 - as.numeric(ntb_birth[,30])),
+      ifelse(
+        !is.na(ntb_birth[,31]) & ntb_birth[,31] !="" & ntb_birth[,31] <110,
+        (1910 - as.numeric(ntb_birth[,31])),
+        ifelse(                                                       
+          !is.na(ntb_birth[,29]) & ntb_birth[,29] !="" & ntb_birth[,29] <110,
+          (1860 - as.numeric(ntb_birth[,29])),
+          ifelse(  
+            !is.na(ntb_birth[,28]) & ntb_birth[,28] !="" & ntb_birth[,28] <110,
+            (1850 - as.numeric(ntb_birth[,28])),
+            ifelse(                                                
+              !is.na(ntb_birth[,6]) & ntb_birth[6] !="",                      
+              (as.numeric(substr(ntb_birth[,6], 1, 4))-as.numeric(ntb_birth[,8])),
+              ifelse(
+                  ntb_birth[,3] == 'B',
+                  ntb_birth[,1],
+                  ifelse(                                    #if code B, use rb_date2
+                    ntb_birth[,4] == 'B',
+                    ntb_birth[,2],
+                    ntb_birth[,1]                             #if census n/a, use rb_date1
+                      
+))))))))
+
+
+
+x1_1 <- as.numeric(substr(ntb_birth$lstdt1_1, 1, 4)) - ntb_birth$lstag1_1
+x1_2 <- as.numeric(substr(ntb_birth$lstdt1_2, 1, 4)) - ntb_birth$lstag1_2
+x1_3 <- as.numeric(substr(ntb_birth$lstdt1_3, 1, 4)) - ntb_birth$lstag1_3
+x2_1 <- as.numeric(substr(ntb_birth$lstdt2_1, 1, 4)) - ntb_birth$lstag2_1
+x2_2 <- as.numeric(substr(ntb_birth$lstdt2_2, 1, 4)) - ntb_birth$lstag2_2
+x2_3 <- as.numeric(substr(ntb_birth$lstdt2_3, 1, 4)) - ntb_birth$lstag2_3
+
+ntb_lst <- cbind(x1_1, x1_2, x1_3, x2_1, x2_2, x2_3)
+ntb_lst <- as.data.frame(ntb_lst)
+
+lst_ntb_birth <- ntb_birth %>%
+  filter(YEAR == "" | is.na(YEAR)) %>%
+  select(lstag1_1:lsdqc2_3)
+
+avg_ntb_lst <- ntb_lst %>%
+  mutate(across(where(is.character), as.numeric)) %>% 
+  mutate(row_mean = rowMeans(across(where(is.numeric)), na.rm = TRUE))
+
+ntb_birth$YEAR <-
+ifelse(
+  ntb_birth[,27] == 'B',
+  (as.numeric(substr(ntb_birth[,21], 1, 4))-as.numeric(ntb_birth[,15])),
+  ifelse(
+    ntb_birth[,26] == 'B',
+    (as.numeric(substr(ntb_birth[,20], 1, 4))-as.numeric(ntb_birth[,14])),
+    ifelse(
+      ntb_birth[,25] == 'B',
+      (as.numeric(substr(ntb_birth[,19], 1, 4))-as.numeric(ntb_birth[,13])),
+      ifelse(
+        ntb_birth[,24] == 'B',
+        (as.numeric(substr(ntb_birth[,18], 1, 4))-as.numeric(ntb_birth[,12])),
+        ifelse(
+          ntb_birth[,23] == 'B',
+          (as.numeric(substr(ntb_birth[,17], 1, 4))-as.numeric(ntb_birth[,11])),
+          ifelse(
+            ntb_birth[,22] == 'B',
+            (as.numeric(substr(ntb_birth[,16], 1, 4))-as.numeric(ntb_birth[,10])),
+            ifelse(
+              !is.na(avg_ntb_lst[,7]) & avg_ntb_lst[,7] !="",
+              as.numeric(avg_ntb_lst[,7]),
+              ntb_birth[,1])
+))))))
+
+
+ntb_birth$YEAR_cd <-
+  ifelse(                                                        #if census, census
+    !is.na(ntb_birth[,5]) & ntb_birth[,5] !="" & ntb_birth[,5] <2000,
+    '0',
+    ifelse(                     
+      !is.na(ntb_birth[,30]) & ntb_birth[,30] !="" & ntb_birth[,30] <110,
+      '0',
+      ifelse(
+        !is.na(ntb_birth[,31]) & ntb_birth[,31] !="" & ntb_birth[,31] <110,
+        '0a',
+        ifelse(                                             #if code B, use rb_date1
+          !is.na(ntb_birth[,29]) & ntb_birth[,29] !="" & ntb_birth[,29] <110,
+          '0b',
+          ifelse(  
+            !is.na(ntb_birth[,28]) & ntb_birth[,28] !="" & ntb_birth[,28] <110,
+            '0c',
+            ifelse(                                                #age at last exam
+              !is.na(ntb_birth[,6]) & ntb_birth[6] !="",                      
+              '1',
+              ifelse(
+                ntb_birth[,3] == 'B',
+                '2a',
+                ifelse(                                       #if code B, use rb_date2
+                  ntb_birth[,4] == 'B',
+                  '2b',
+                  ifelse(
+                    ntb_birth[,27] == 'B',
+                    '3a',
+                    ifelse(
+                      ntb_birth[,26] == 'B',
+                      '3b',
+                      ifelse(
+                        ntb_birth[,25] == 'B',
+                        '3c',
+                        ifelse(
+                          ntb_birth[,24] == 'B',
+                          '3d',
+                          ifelse(
+                            ntb_birth[,23] == 'B',
+                            '3e',
+                            ifelse(
+                              ntb_birth[,22] == 'B',
+                              '3f',
+                              ifelse(
+                                !is.na(avg_ntb_lst[,7]) & avg_ntb_lst[,7] !="",
+                                '4',
+                                '5'                    #if census n/a, use rb_date1
+              
+    )))))))))))))))
+
+
+yr <- cbind(c(tb_birth$YEAR, ntb_birth$YEAR), c(tb_birth$YEAR_cd, ntb_birth$YEAR_cd))
+
+
+ntb_YEAR_cl <- as.numeric(substr(ntb_birth$YEAR, 1, 4))
+ntb_YEAR_cl <- YEAR_cl[which(ntb_YEAR_cl>1700 & ntb_YEAR_cl<1865)]
+
+tb_YEAR_cl <- as.numeric(substr(tb_birth$YEAR, 1, 4))
+tb_YEAR_cl <- tb_YEAR_cl[which(tb_YEAR_cl>1700 & tb_YEAR_cl<1865 & !is.na(tb_YEAR_cl))]
+
+hist(ntb_YEAR_cl, breaks=50)
+hist(tb_YEAR_cl, breaks=50)
+yr
+table(yr[,2])
+
+```
+
+Death Year
+
+```{r}
+
+```
+
+## Here are some summary statistics and preliminary analyses for this sample:
+
+```{r}
+
+tb %>%
+  select(where(~ all(is.na(.) | . == ""))) %>%
+  names()
+
+
+library(readr)
+write_csv(tb, "tb_v2.csv")
+write_csv(ntb, "ntb_v1.csv")
+
+
+######### DOD/DOB/Age at Death Comparison
+
+
+YEAR_cl <- as.numeric(substr(ntb_birth$YEAR, 1, 4))
+YEAR_cl <- YEAR_cl[which(YEAR_cl>1700 & YEAR_cl<1865)]
+
+
+tb_YEAR_cl <- as.numeric(substr(tb_birth$YEAR, 1, 4))
+tb_YEAR_cl <- tb_YEAR_cl[which(tb_YEAR_cl>1700 & tb_YEAR_cl<1865 & !is.na(tb_YEAR_cl))]
+
+hist(YEAR_cl, breaks=50)
+hist(tb_YEAR_cl, breaks=50)
+mean(YEAR_cl[which(!is.na(YEAR_cl))])
+summary(YEAR_cl)
+
+
+######### Measurements of TB group
+
+avg(tb$)
+
+hist(tb$a_hgtin[which(tb$a_hgtin < 12 | tb$a_hgtft != 6)])
+
+hist(tb$a_weight)
+
+
+######### Percentage of afflicted individuals that ended up dying to TB
+
+## tb death df
+tb_die <- tb[which(grepl("TUBER", tb$rd_cause)==T | grepl("TUBER", tb$rd_ccaus)==T),]
+
+## FINAL PERCENTAGE
+count(tb_die)/count(tb) # 0.4473993
+
+frequency(unique(tb$r_stat01))
+
+
+#########  Location info
+
+state = tb$
+
+
+
+```
+
+```{r}
+
+########## Montecarlo Simulation (Lillefors) for weight
+
+n = length(tb$a_weight)
+
+set.seed(7143)
+N_mc = 15000
+alpha = 0.05
+mcstat = c()
+theoretical_cdf = (1:n)/(n+1)
+
+for (i in 1:N_mc){
+  mcs = rnorm(n, 0, 1)
+  mc_Psix = pnorm(sort(mcs), 0, 1)
+  mc_Dx = abs(mc_Psix - theoretical_cdf)
+  mcstat = c(mcstat, max(mc_Dx))
+}
+
+mc_crit = quantile(mcstat, 1-alpha)
+hist(mcstat, breaks = 50)
+
+c(KS_stat, mc_crit)
+
+#########
+
+
+```

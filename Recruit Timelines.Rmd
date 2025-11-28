@@ -1,0 +1,328 @@
+---
+title: "Recruit Timeline"
+output: html_document
+date: "2025-10-09"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+```
+
+## R Markdown
+
+To help me visualize the timeline of these recruits, I've found a couple of examples
+
+```{r rec1}
+
+tline <- all |>
+  select(recidnum,
+         
+    rb_date1,
+    
+    lstdt1_1, lstdt1_2, lstdt1_3,
+    lstdt2_1, lstdt2_2, lstdt2_3,
+    
+    dschdt01, dschdt02, dschdt03, dschdt04, dschdt05,
+    dschdt06, dschdt07, dschdt08, dschdt09, dschdt10,
+    dschdt11, dschdt12, dschdt13, dschdt14, dschdt15,
+    dschdt16, dschdt17, dschdt18, dschdt19, dschdt20,
+    dchdt1_1, dchdt1_2, dchdt1_3, dchdt2_1, dchdt2_2, dchdt2_3, 
+    
+illwnd01, illwnd02, illwnd03, illwnd04, illwnd05, illwnd06, illwnd07, illwnd08, illwnd09, illwnd10, illwnd11, illwnd12, illwnd13, illwnd14, illwnd15, illwnd16, illwnd17, illwnd18, illwnd19, illwnd20, admtdt01, admtdt02, admtdt03, admtdt04, admtdt05, admtdt06, admtdt07, admtdt08, admtdt09, admtdt10, admtdt11, admtdt12, admtdt13, admtdt14, admtdt15, admtdt16, admtdt17, admtdt18, admtdt19, admtdt20, relsdt01, relsdt02, relsdt03, relsdt04, relsdt05, relsdt06, relsdt07, relsdt08, relsdt09, relsdt10, relsdt11, relsdt12, relsdt13, relsdt14, relsdt15, relsdt16, relsdt17, relsdt18, relsdt19, relsdt20,
+    
+dsrtdt01, dsrtdt02, dsrtdt03, dsrtdt04, dsrtdt05, dsrtdt06, dsrtdt07, dsrtdt08, dsrtdt09, dsrtdt10, dsrtdt11, dsrtdt12, dsrtdt13, dsrtdt14, dsrtdt15, dsrtdt16, dsrtdt17, dsrtdt18, dsrtdt19, dsrtdt20, 
+
+rd_date
+  )
+
+#####
+rec1 <- t(tline[8,])
+dt1 <- rec1[,1]
+rec1 <- data.frame(rec1[dt1 !='' & !is.na(dt1), ,drop = F])
+
+
+##### Desertion w TB
+rec2 <- t(tline[124,])
+dt2 <- rec2[,1]
+rec2 <- data.frame(rec2[dt2 !='' & !is.na(dt2), ,drop = F])
+
+check <- t(all[124,])
+tb_birth[124,]
+
+#####
+rec3a <- tline[2866,]
+dt3a <- rec3a[[1]]
+rec3a <- data.frame(rec3a[dt3a !='' & !is.na(dt3a), ,drop = F])
+t(rec3a)
+
+#####
+rec3b <- tline[2869,]
+dt3b <- rec3b[[1]]
+rec3b <- data.frame(rec3b[dt3b !='' & !is.na(dt3b), ,drop = F])
+t(rec3b)
+
+tb_birth[2869,]
+
+```
+
+## Timeline Organizations
+
+For the recruits, I would like to know the total time spent in hospitals and the number of hospital visits, as well as the number of enlistments and the total time spent in the military. let's start with enlistments:
+
+```{r}
+
+##########  Step 1: Finalizing enlistment dates  ##########
+
+# Isolate all enlistments
+
+lst <- all |>
+  select(recidnum,
+    lstdt1_1, mildfdt1, lstdt1_2, mildfdt2,
+    lstdt1_3, mildfdt3, lstdt2_1, mildfdt4,
+    lstdt2_2, mildfdt5, lstdt2_3, mildfdt6
+  )
+
+### Turn all blanks into NA and remove repeated dates
+
+is.data.frame(lst)
+
+
+remove_blank <- function(x){
+  x <- x |>
+    mutate(across(everything(), ~if_else(.x == "", NA, .x)))
+  return(x)
+}
+
+cln_dupl <- function(x){
+  x[duplicated(x)] <- NA
+  return(x)
+}
+
+lst <- as.data.frame(t(apply(remove_blank(lst), 1, cln_dupl)))
+
+
+
+### Cleaning approximate dates (for day, use 15; for month)
+
+
+# Find all rows with "--"
+
+lst_dash <- all |>
+  select(lstdt1_1, lstdt1_2, lstdt1_3,
+         lstdt2_1, lstdt2_2, lstdt2_3) |>
+  filter(
+    if_any(lstdt1_1:lstdt2_3, ~grepl("--", .))
+  )
+
+
+# Turn end "--" into 0 and delete every cell that still has "--" to get rid of dates that are too arbitrary (month or year is unknown)
+
+lst <- lst |>
+  select(lstdt1_1, mildfdt1, lstdt1_2, mildfdt2,
+         lstdt1_3, mildfdt3, lstdt2_1, mildfdt4,
+         lstdt2_2, mildfdt5, lstdt2_3, mildfdt6
+  ) |>
+  mutate(
+    (across(everything(), ~gsub("--$", "00", .)))
+  ) |>
+  mutate(
+    across(everything(), ~if_else(grepl("--", .x), NA, .x))
+  )
+
+
+
+###########  Step 2: Finalizing Discharge dates   ##########
+
+
+### What else can stand in for discharge?
+#     Desertion, Death, Capture POW
+#     NOT AWOL
+#     NOT Furlough (temporary leave of absence)
+
+### We must make another dataframe with all of the alternatives for exiting service (we only care about the designations with dates)
+
+rexit <- all |>
+  select(recidnum,
+    milcact1, milcact2, milcact3, milcact4, milcact5,
+    milcrsn1, milcrsn2, milcrsn3, milcrsn4, milcrsn5,
+    milctdt1, milctdt2, milctdt3, milctdt4, milctdt5,
+    
+    dsrtdt01, dsrtdt02, dsrtdt03, dsrtdt04, dsrtdt05,
+    dsrtdt06, dsrtdt07, dsrtdt08, dsrtdt09, dsrtdt10,
+    dsrtdt11, dsrtdt12, dsrtdt13, dsrtdt14, dsrtdt15, 
+    dsrtdt16, dsrtdt17, dsrtdt18, dsrtdt19, dsrtdt20
+  )
+
+rexit <- remove_blank(rexit)
+
+milc1 <- rexit |>
+  select(recidnum, milcact1, milcrsn1, milctdt1)
+milc2 <- rexit |>
+  select(recidnum, milcact2, milcrsn2, milctdt2)
+milc3 <- rexit |>
+  select(recidnum, milcact3, milcrsn3, milctdt3)
+milc4 <- rexit |>
+  select(recidnum, milcact4, milcrsn4, milctdt4)
+milc5 <- rexit |>
+  select(recidnum, milcact5, milcrsn5, milctdt5)
+
+
+# filter for identifying desertion, removing "--"
+
+milc_dsrt_filter <- function(x){
+  as.character(
+    case_when(
+      grepl('desert', x[[3]], ignore.case = T) | x[[2]] == "D" ~ x[[4]],
+      T ~ NA_character_
+    )
+  )
+}
+
+milc_dsrt <- tibble(dsrt1 = as.character(milc_dsrt_filter(milc1)),
+                   dsrt2 = as.character(milc_dsrt_filter(milc2)),
+                   dsrt3 = as.character(milc_dsrt_filter(milc3)),
+                   dsrt4 = as.character(milc_dsrt_filter(milc4)),
+                   dsrt5 = as.character(milc_dsrt_filter(milc5)))
+
+milc_dsrt <- bind_cols(
+  milc_dsrt,
+  rexit |> select(starts_with("dsrtdt"))
+)
+
+
+cln_31 <- function(x){
+  x <- x |>
+  mutate(
+    across(
+      everything(),
+      ~ {
+        x <- gsub("--$", "31", .x)           
+        x <- ifelse(grepl("--", x), NA, x)
+        x
+      }
+    )
+  )
+  return(x)
+}
+
+
+milc_dsrt <- cln_31(as.data.frame(t(apply(milc_dsrt, 1, cln_dupl))))
+
+
+
+milc_pow_filter <- function(x){
+  as.character(
+    case_when(
+      grepl('capture|pow|prison', x[[3]], ignore.case = T) ~ x[[4]],
+      T ~ NA_character_
+    )
+  )
+}
+
+
+milc_pow <- cln_31(tibble(
+  pow1 = milc_pow_filter(milc1),
+  pow2 = milc_pow_filter(milc2),
+  pow3 = milc_pow_filter(milc3),
+  pow4 = milc_pow_filter(milc4),
+  pow5 = milc_pow_filter(milc5)
+))
+
+
+milc_dth_filter <- function(x){
+  as.character(
+    case_when(
+      grepl('died|death|kia|killed', x[[3]], ignore.case = T) ~ x[[4]],
+      T ~ NA_character_
+    )
+  )
+}
+
+milc_death <- cln_31(tibble(
+  dth1 = milc_dth_filter(milc1),
+  dth2 = milc_dth_filter(milc2),
+  dth3 = milc_dth_filter(milc3),
+  dth4 = milc_dth_filter(milc4),
+  dth5 = milc_dth_filter(milc5)
+))
+
+####### Step 3: add official discharges  ##########
+
+dch <- all |>
+  select(
+    dschdt01, dschdt02, dschdt03, dschdt04, dschdt05,
+    dschdt06, dschdt07, dschdt08, dschdt09, dschdt10,
+    dschdt11, dschdt12, dschdt13, dschdt14, dschdt15,
+    dschdt16, dschdt17, dschdt18, dschdt19, dschdt20,
+    dchdt1_1, dchdt1_2, dchdt1_3, dchdt2_1, dchdt2_2, dchdt2_3
+  )
+
+
+dch <- cln_31(as.data.frame(t(apply(remove_blank(dch), 1, cln_dupl))))
+
+
+####### Step 3: Combine rexit and lst  ##########
+
+rlst <- bind_cols(
+  all |> select(recidnum),
+  lst,
+  dch,
+  milc_death,
+  milc_dsrt,
+  milc_pow
+)
+
+
+ind_timeline <- function(df, row_id) {
+  row <- df[row_id, ]
+  row <- row |> mutate(across(-recidnum, as.character))
+  row_long <- row |>
+    pivot_longer(
+      -recidnum,
+      names_to = "col",
+      values_to = "date"
+    ) |>
+    mutate(date = suppressWarnings(as.Date(date, format = "%Y%m%d"))) |>
+    filter(!is.na(date)) |>
+    arrange(date)
+  row_wide <- row_long |>
+    select(recidnum, col, date) |>
+    pivot_wider(names_from = col, values_from = date)
+  
+  row_wide
+}
+
+
+
+
+pow <- rlst |>
+  filter(if_any(pow1:pow5, ~ !is.na(.)))
+
+dsrt <- rlst |>
+  filter(if_any(dsrt1:dsrtdt20, ~ !is.na(.)))
+
+
+r <- ind_timeline(rlst, 10000)
+
+
+####### Step 4: Create lst_tot and n_lst   ##########
+
+#(If two enlistment dates with no discharge, count later date in n_lst, remove before lst_tot)
+
+### n_lst: Isolate final enlistment dates, count number of non-blank columns per row
+
+### lst_tot: Subtract each: dsch - lst, ignoring any lst in between. Add together numerical values into column
+
+
+
+
+
+```
+
+Now for hospital visits:
+
+```{r}
+
+```
