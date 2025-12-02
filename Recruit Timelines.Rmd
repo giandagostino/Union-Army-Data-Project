@@ -71,7 +71,7 @@ tb_birth[2869,]
 
 For the recruits, I would like to know the total time spent in hospitals and the number of hospital visits, as well as the number of enlistments and the total time spent in the military. let's start with enlistments:
 
-```{r}
+```{r lst}
 
 ##########  Step 1: Finalizing enlistment dates  ##########
 
@@ -306,6 +306,10 @@ dsrt <- rlst |>
 
 r <- ind_timeline(rlst, 10000)
 
+pow1 <- ind_timeline(pow, 70)
+pow2 <- ind_timeline(pow, 4)
+pow3 <- ind_timeline(pow, 9)
+
 
 ####### Step 4: Create lst_tot and n_lst   ##########
 
@@ -323,6 +327,25 @@ r <- ind_timeline(rlst, 10000)
 
 Now for hospital visits:
 
-```{r}
+```{r hosp}
+
+hosp <- all |>
+  select(recidnum, 
+    admtdt01, admtdt02, admtdt03, admtdt04, admtdt05, admtdt06, admtdt07, admtdt08, admtdt09, admtdt10, admtdt11, admtdt12, admtdt13, admtdt14, admtdt15, admtdt16, admtdt17, admtdt18, admtdt19, admtdt20,
+relsdt01, relsdt02, relsdt03, relsdt04, relsdt05, relsdt06, relsdt07, relsdt08, relsdt09, relsdt10, relsdt11, relsdt12, relsdt13, relsdt14, relsdt15, relsdt16, relsdt17, relsdt18, relsdt19, relsdt20
+  )
+
+hosp <- remove_blank(hosp)
+
+
+# Adding row for number of hospitalizations, deleting ambiguous dates
+
+hosp <- hosp |> 
+  mutate(n_hosp = rowSums(!is.na(across(admtdt01:admtdt20))),
+         across(everything(), ~ifelse(grepl("--", .x), NA, .x))
+  )
+
+
+
 
 ```
