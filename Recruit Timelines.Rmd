@@ -4,10 +4,30 @@ output: html_document
 date: "2025-10-09"
 ---
 
-```{r setup, include=FALSE}
+```{r setup, include=FALSE, warning=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
+library(readr)
+library(data.table)
+
+ntb = fread("Datasets In Progress/ntb_v3.csv")
+tb = fread("Datasets In Progress/tb_v4.csv")
+all <- rbind(tb,ntb)
+
+
+remove_blank <- function(x){
+  x <- x |>
+    mutate(across(everything(), ~if_else(.x == "", NA, .x)))
+  return(x)
+}
+
+cln_dupl <- function(x){
+  x[duplicated(x)] <- NA
+  return(x)
+}
+
+
 ```
 
 ## R Markdown
@@ -342,11 +362,85 @@ hosp <- remove_blank(hosp)
 
 hosp <- hosp |> 
   mutate(n_hosp = rowSums(!is.na(across(admtdt01:admtdt20))),
-         across(everything(), ~ifelse(grepl("--", .x), NA, .x))
+         across(everything(), ~ifelse(grepl("--|##", .x), NA, .x))
   )
+  
+#Now to remove repeated dates
+
+hosp <- as.data.frame(t(apply(remove_blank(hosp), 1, cln_dupl)))
 
 
 
-#***********REMOVE REPEATED DATES**************
+```
+
+## Recruit Buckets
+
+To further analyze these recruits, we want to separate them into case archetypes:
+
+-   TB to death
+
+    -   Early diers (\<1 year)
+
+    -   Moderate ()
+
+    -   Resistant ()
+
+-   Enlistment 1 to TB
+
+-   Enlistment 1 to discharge final
+
+\## a_brtcnt
+
+\## a_clm[01-08]
+
+\## a_clst[01,02,07]
+
+\## afdesc[01,02,07]
+
+\## dschrn[]
+
+```{r buckets}
+
+# TB to death
+
+# When is the first mention of TB in their record? Isolate the variables that have TB data (connected to date).
+
+## a_clm[01-05,07-08]        appdt[]
+## a_clst[01,02,07]          ^
+## afdesc[01,02,07]          infodt[]
+## dschrn[01-05]             dschdt[]
+## dschrn[07-14,16,19-20]    ^
+## dthcs[01-10,12,16,18]     ?
+## gen_rd_cause_6icd         ?
+## g_rel[01,02,06,07]        x
+## i_cmt2                    i_whn[]
+## i_eff1[01-04,07]          ^
+## i_eff201                  ^
+## i_fev[1-2]                ^
+## i_rel10[1-2]              ^
+## ilwdsc[01-20]             admtdt[]
+## l_rel01                   ? hosp?
+## m_rel01                   ^
+## n_rel01                   ^
+## othrrn[01-02]             ilwdsc[]
+## p_cmt[1-3,5]              ?
+## pc_ds[1-3]                ?
+## p_lrs[1-5,7]              ?
+## p_rel[01-02]              ?
+## q_rel01                   ?
+## result[01-06,08,11]
+## sc1rmks
+## sc2rmks
+## sc4rmk01
+## sc6rmk[01-05,08]
+## unftc1_[1-3]
+## unftc2_1
+## x_ext[11,21,41]
+
+
+tb_date <- tb |>
+  select(
+    
+  )
 
 ```
