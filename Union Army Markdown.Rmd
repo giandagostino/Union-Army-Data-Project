@@ -321,6 +321,8 @@ WHERE REGEXP_MATCHES(a_clm01,   'TUBER|CONSUMP|PHTH')
 
 ```
 
+(Add a TB identifier label and connect to database)
+
 ```{r}
 
 duckdb::duckdb_register(con, "tb", tb |> mutate(recidnum = as.character(recidnum)))
@@ -341,6 +343,8 @@ WHERE recidnum NOT IN (
   SELECT DISTINCT recidnum
   FROM tb
 );
+
+
 
 
 ```
@@ -372,6 +376,18 @@ ntb |>
 Birth Year
 
 ```{r}
+
+tb <- tb |>
+  mutate(
+    TB_yn = "1"
+  )
+
+ntb <- ntb |>
+  mutate(
+    TB_yn = "0"
+  )
+
+all <- rbind(tb, ntb)
 
 #################################### Birth Year ######################################
 
@@ -461,32 +477,6 @@ all_birth <- all_birth |>
     )
   )
 
-hist(all_birth$BYR)
-
-tb_birth$YEAR <-
-ifelse(
-  tb_birth[,27] == 'B',
-  (as.numeric(substr(tb_birth[,21], 1, 4))-as.numeric(tb_birth[,15])),
-  ifelse(
-    tb_birth[,26] == 'B',
-    (as.numeric(substr(tb_birth[,20], 1, 4))-as.numeric(tb_birth[,14])),
-    ifelse(
-      tb_birth[,25] == 'B',
-      (as.numeric(substr(tb_birth[,19], 1, 4))-as.numeric(tb_birth[,13])),
-      ifelse(
-        tb_birth[,24] == 'B',
-        (as.numeric(substr(tb_birth[,18], 1, 4))-as.numeric(tb_birth[,12])),
-        ifelse(
-          tb_birth[,23] == 'B',
-          (as.numeric(substr(tb_birth[,17], 1, 4))-as.numeric(tb_birth[,11])),
-          ifelse(
-            tb_birth[,22] == 'B',
-            (as.numeric(substr(tb_birth[,16], 1, 4))-as.numeric(tb_birth[,10])),
-            ifelse(
-              !is.na(avg_tb_lst[,7]) & avg_tb_lst[,7] !="",
-              as.numeric(avg_tb_lst[,7]),
-              tb_birth[,1])
-))))))
 
 
 tb_birth$YEAR_cd <-
@@ -539,31 +529,14 @@ tb_birth$YEAR_cd <-
               
     )))))))))))))))
 
-
-
-
-yr <- cbind(c(tb_birth$YEAR, ntb_birth$YEAR), c(tb_birth$YEAR_cd, ntb_birth$YEAR_cd))
-
-
-ntb_YEAR_cl <- as.numeric(substr(ntb_birth$YEAR, 1, 4))
-ntb_YEAR_cl <- YEAR_cl[which(ntb_YEAR_cl>1700 & ntb_YEAR_cl<1865)]
-
-tb_YEAR_cl <- as.numeric(substr(tb_birth$YEAR, 1, 4))
-tb_YEAR_cl <- tb_YEAR_cl[which(tb_YEAR_cl>1700 & tb_YEAR_cl<1865 & !is.na(tb_YEAR_cl))]
-
-hist(ntb_YEAR_cl, breaks=50)
-hist(tb_YEAR_cl, breaks=50)
-yr
-table(yr[,2])
-
 ```
 
 Death Year
 
 ```{r death}
 
-all_death <- all |>
-  select(
+all_death <- as.character(all) |>
+  select(recidnum,
     rd_date, rd_dtqc, dthdt01, dthdt02, dthdt03, dthdt04, dthdt05, dthdt06,
     dthdt07, dthdt08, dthdt09, dthdt10, dthdt11, dthdt12, dthdt13, dthdt14,
     dthdt15, dthdt16, dthdt17, dthdt18, dthdt19, dthdt20
@@ -576,16 +549,7 @@ all_death <- remove_blank(all_death) |>
     DYR = case_when(
       !is.na(rd_date) ~ substr(rd_date, 1,4),
       TRUE ~ NA)
-  ) |>
-  rowwise() |>
-  mutate(
-    DYR = coalesce(rd_date, c_across(dthdt01:dthdt20))
-  ) |>
-  ungroup()
-
-non_na(all_death$DYR)
-
-
+  )
 
 ```
 
@@ -672,6 +636,285 @@ hist(mcstat, breaks = 50)
 c(KS_stat, mc_crit)
 
 #########
+
+all$i_whn
+```
+
+## Survival Analysis
+
+Now let's try to fit a Kaplan-Meier curve to the people with tuberculosis mentioned in their record.
+
+Start by finding the first date that is associated with a mention of TB
+
+```{r}
+
+tb_date_date <- remove_blank(tb) |>
+  select(recidnum,
+    #a_clm01_date = appdt01,
+    #a_clm02_date = appdt02,
+    #a_clm03_date = appdt03,
+    #a_clm04_date = appdt04,
+    #a_clm05_date = appdt05,
+    #a_clm07_date = appdt07,
+    #a_clm08_date = appdt08,
+    #a_clst01_date = appdt01,
+    #a_clst02_date = appdt02,
+    #a_clst07_date = appdt07,
+    #afdesc01_date = infodt01,
+    #afdesc02_date = infodt02,
+    #afdesc07_date = infodt07,
+    dschrn01_date = dschdt01,
+dschrn02_date = dschdt02,
+dschrn03_date = dschdt03,
+dschrn04_date = dschdt04,
+dschrn05_date = dschdt05,
+dschrn07_date = dschdt07,
+dschrn08_date = dschdt08,
+dschrn09_date = dschdt09,
+dschrn10_date = dschdt10,
+dschrn11_date = dschdt11,
+dschrn12_date = dschdt12,
+dschrn13_date = dschdt13,
+dschrn14_date = dschdt14,
+dschrn16_date = dschdt16,
+dschrn19_date = dschdt19,
+dschrn20_date = dschdt20,
+ilwdsc01_date = admtdt01,
+ilwdsc02_date = admtdt02,
+ilwdsc03_date = admtdt03,
+ilwdsc04_date = admtdt04,
+ilwdsc05_date = admtdt05,
+ilwdsc06_date = admtdt06,
+ilwdsc07_date = admtdt07,
+ilwdsc08_date = admtdt08,
+ilwdsc09_date = admtdt09,
+ilwdsc10_date = admtdt10,
+ilwdsc11_date = admtdt11,
+ilwdsc12_date = admtdt12,
+ilwdsc13_date = admtdt13,
+ilwdsc14_date = admtdt14,
+ilwdsc15_date = admtdt15,
+ilwdsc16_date = admtdt16,
+ilwdsc17_date = admtdt17,
+ilwdsc18_date = admtdt18,
+ilwdsc19_date = admtdt19,
+ilwdsc20_date = admtdt20,
+othrrn01_date = othrdt01,
+othrrn02_date = othrdt02,
+unftc1_1_date = dchdt1_1,
+unftc1_2_date = dchdt1_2,
+unftc1_3_date = dchdt1_3,
+unftc2_1_date = dchdt2_1
+  ) |>
+  mutate(across(-recidnum, as.character))
+
+
+tb_date_event <- remove_blank(tb) |>
+  select(recidnum,
+dschrn01,
+dschrn02,
+dschrn03,
+dschrn04,
+dschrn05,
+dschrn07,
+dschrn08,
+dschrn09,
+dschrn10,
+dschrn11,
+dschrn12,
+dschrn13,
+dschrn14,
+dschrn16,
+dschrn19,
+dschrn20,
+
+ilwdsc01,
+ilwdsc02,
+ilwdsc03,
+ilwdsc04,
+ilwdsc05,
+ilwdsc06,
+ilwdsc07,
+ilwdsc08,
+ilwdsc09,
+ilwdsc10,
+ilwdsc11,
+ilwdsc12,
+ilwdsc13,
+ilwdsc14,
+ilwdsc15,
+ilwdsc16,
+ilwdsc17,
+ilwdsc18,
+ilwdsc19,
+ilwdsc20,
+
+othrrn01,
+othrrn02,
+
+unftc1_1,
+unftc1_2,
+unftc1_3,
+unftc2_1
+  )
+
+
+
+# Lengthen the dataset and identify pairs
+
+event_long <- tb_date_event |>
+  pivot_longer(
+    cols = -recidnum,
+    names_to = "slot",
+    values_to = "event"
+  )
+
+date_long <- tb_date_date |>
+  pivot_longer(
+    cols = -recidnum,
+    names_to = "slot",
+    values_to = "date"
+  ) |>
+  mutate(slot = str_remove(slot, "_date$")) 
+
+tb_long <- event_long |>
+  inner_join(date_long, by = c("recidnum", "slot"))
+
+tb_dates <- tb_long |>
+  filter(
+    !is.na(event),
+    str_detect(event, regex("TUBER|CONSUMP|PHTH", ignore_case = TRUE))
+  ) |>
+  group_by(recidnum) |>
+  summarise(
+    tb_dates = list(date),
+    .groups = "drop"
+  )
+
+
+###### And then join everything back to tb
+
+tb_min_dates <- tb_dates |>
+  mutate(
+    tb_dates_clean = map(tb_dates, ~ .x[!is.na(.x) & .x != ""]),
+    # Replace trailing "--" with "15"
+    tb_dates_clean = map(tb_dates_clean, ~ str_replace(.x, "--$", "15")),
+    # Keep only valid 8-digit dates
+    tb_dates_clean = map(tb_dates_clean, ~ .x[str_detect(.x, "^\\d{8}$")]),
+    # Get earliest date
+    tb_first_date = map_chr(tb_dates_clean, ~ if(length(.x) == 0) NA_character_ else min(.x))
+  ) |>
+  select(recidnum, tb_first_date)
+
+tb_min_dates$recidnum <- as.character(tb_min_dates$recidnum)
+
+first_tb_full <- tb |>
+  left_join(tb_min_dates, by = "recidnum") |>
+  select(recidnum, tb_first_date)
+```
+
+Now let's get a data frame with relevant date by recruit
+
+```{r}
+
+
+
+
+DYR <- all_death$DYR
+all_birth <- all_birth |>
+  select(
+    recidnum, BYR
+  ) |>
+  mutate(
+    DYR = DYR
+  )
+
+
+first_tb_full <- first_tb_full |>
+  mutate(recidnum = as.character(recidnum))
+
+first_tb_full <- all_birth |>
+  left_join(first_tb_full, by = "recidnum") |>
+  mutate(
+    tb_first_date = substr(tb_first_date, 1, 4)
+  )
+
+first_tb_full <- remove_blank(first_tb_full) |>
+  drop_na() |>
+  mutate(
+    DYR = as.numeric(DYR),
+    tb_first_date = as.numeric(tb_first_date)
+  )
+
+
+```
+
+And plot!
+
+```{r}
+
+library(survival)
+library(dplyr)
+
+library(dplyr)
+library(survival)
+
+# Prepare dataset
+surv_tb <- first_tb_full |>
+  mutate(
+    age_tb = tb_first_date - BYR,
+    age_death = DYR - BYR
+  )
+
+# Right-censored survival object (referencing the columns inside the dataframe)
+surv_obj <- Surv(
+  time = ifelse(!is.na(surv_tb$age_tb), surv_tb$age_tb, surv_tb$age_death),
+  event = ifelse(!is.na(surv_tb$age_tb), 1, 0)
+)
+
+# Fit Kaplan-Meier
+km_fit <- survfit(surv_obj ~ 1)
+
+# Base R plot
+plot(km_fit,
+     xlab = "Age (years)",
+     ylab = "Survival with TB",
+     main = "Kaplan-Meier Curve",
+     col = "blue",
+     lwd = 2)
+
+# Optional: add confidence intervals
+lines(km_fit$time, km_fit$upper, lty = 2, col = "red")
+lines(km_fit$time, km_fit$lower, lty = 2, col = "red")
+
+
+
+
+# Calculate time since TB mention and censoring
+surv_tb <- first_tb_full %>%
+  filter(!is.na(tb_first_date)) %>%  # only people who had TB
+  mutate(
+    start_age = tb_first_date - BYR,    # age at first TB
+    end_age = DYR - BYR,                # age at death
+    time_since_tb = end_age - start_age, # duration after TB
+    event = 1                           # everyone eventually dies, so event = 1
+  ) %>%
+  filter(time_since_tb >= 0)            # remove negative intervals if any
+
+surv_obj <- Surv(time = surv_tb$time_since_tb, event = surv_tb$event)
+
+km_fit <- survfit(surv_obj ~ 1)
+
+plot(km_fit,
+     xlab = "Years since first TB mention",
+     ylab = "Survival probability",
+     main = "Kaplan-Meier Curve: Survival After TB",
+     col = "blue",
+     lwd = 2)
+
+# Optional: add confidence intervals
+lines(km_fit$time, km_fit$upper, lty = 2, col = "red")
+lines(km_fit$time, km_fit$lower, lty = 2, col = "red")
 
 
 ```

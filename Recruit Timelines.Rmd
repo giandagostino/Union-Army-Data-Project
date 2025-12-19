@@ -422,25 +422,183 @@ To further analyze these recruits, we want to separate them into case archetypes
 ## l_rel01                   ? hosp?
 ## m_rel01                   ^
 ## n_rel01                   ^
-## othrrn[01-02]             ilwdsc[]
+## othrrn[01-02]             othrdt[]
 ## p_cmt[1-3,5]              ?
 ## pc_ds[1-3]                ?
 ## p_lrs[1-5,7]              ?
 ## p_rel[01-02]              ?
 ## q_rel01                   ?
-## result[01-06,08,11]
-## sc1rmks
-## sc2rmks
-## sc4rmk01
-## sc6rmk[01-05,08]
-## unftc1_[1-3]
-## unftc2_1
-## x_ext[11,21,41]
+## result[01-06,08,11]       x
+## sc1rmks                   x
+## sc2rmks                   x
+## sc4rmk01                  x
+## sc6rmk[01-05,08]          x
+## unftc1_[1-3]              dchdt1_[1-3]
+## unftc2_1                  dchdt2_1
+## x_ext[11,21,41]           x
 
 
-tb_date <- tb |>
-  select(
-    
+tb_date_date <- remove_blank(tb) |>
+  select(recidnum,
+    #a_clm01_date = appdt01,
+    #a_clm02_date = appdt02,
+    #a_clm03_date = appdt03,
+    #a_clm04_date = appdt04,
+    #a_clm05_date = appdt05,
+    #a_clm07_date = appdt07,
+    #a_clm08_date = appdt08,
+    #a_clst01_date = appdt01,
+    #a_clst02_date = appdt02,
+    #a_clst07_date = appdt07,
+    #afdesc01_date = infodt01,
+    #afdesc02_date = infodt02,
+    #afdesc07_date = infodt07,
+    dschrn01_date = dschdt01,
+dschrn02_date = dschdt02,
+dschrn03_date = dschdt03,
+dschrn04_date = dschdt04,
+dschrn05_date = dschdt05,
+dschrn07_date = dschdt07,
+dschrn08_date = dschdt08,
+dschrn09_date = dschdt09,
+dschrn10_date = dschdt10,
+dschrn11_date = dschdt11,
+dschrn12_date = dschdt12,
+dschrn13_date = dschdt13,
+dschrn14_date = dschdt14,
+dschrn16_date = dschdt16,
+dschrn19_date = dschdt19,
+dschrn20_date = dschdt20,
+ilwdsc01_date = admtdt01,
+ilwdsc02_date = admtdt02,
+ilwdsc03_date = admtdt03,
+ilwdsc04_date = admtdt04,
+ilwdsc05_date = admtdt05,
+ilwdsc06_date = admtdt06,
+ilwdsc07_date = admtdt07,
+ilwdsc08_date = admtdt08,
+ilwdsc09_date = admtdt09,
+ilwdsc10_date = admtdt10,
+ilwdsc11_date = admtdt11,
+ilwdsc12_date = admtdt12,
+ilwdsc13_date = admtdt13,
+ilwdsc14_date = admtdt14,
+ilwdsc15_date = admtdt15,
+ilwdsc16_date = admtdt16,
+ilwdsc17_date = admtdt17,
+ilwdsc18_date = admtdt18,
+ilwdsc19_date = admtdt19,
+ilwdsc20_date = admtdt20,
+othrrn01_date = othrdt01,
+othrrn02_date = othrdt02,
+unftc1_1_date = dchdt1_1,
+unftc1_2_date = dchdt1_2,
+unftc1_3_date = dchdt1_3,
+unftc2_1_date = dchdt2_1
+  ) |>
+  mutate(across(-recidnum, as.character))
+
+
+tb_date_event <- remove_blank(tb) |>
+  select(recidnum,
+dschrn01,
+dschrn02,
+dschrn03,
+dschrn04,
+dschrn05,
+dschrn07,
+dschrn08,
+dschrn09,
+dschrn10,
+dschrn11,
+dschrn12,
+dschrn13,
+dschrn14,
+dschrn16,
+dschrn19,
+dschrn20,
+
+ilwdsc01,
+ilwdsc02,
+ilwdsc03,
+ilwdsc04,
+ilwdsc05,
+ilwdsc06,
+ilwdsc07,
+ilwdsc08,
+ilwdsc09,
+ilwdsc10,
+ilwdsc11,
+ilwdsc12,
+ilwdsc13,
+ilwdsc14,
+ilwdsc15,
+ilwdsc16,
+ilwdsc17,
+ilwdsc18,
+ilwdsc19,
+ilwdsc20,
+
+othrrn01,
+othrrn02,
+
+unftc1_1,
+unftc1_2,
+unftc1_3,
+unftc2_1
   )
 
+
+
+# Lengthen the dataset and identify pairs
+
+event_long <- tb_date_event |>
+  pivot_longer(
+    cols = -recidnum,
+    names_to = "slot",
+    values_to = "event"
+  )
+
+date_long <- tb_date_date |>
+  pivot_longer(
+    cols = -recidnum,
+    names_to = "slot",
+    values_to = "date"
+  ) |>
+  mutate(slot = str_remove(slot, "_date$")) 
+
+tb_long <- event_long |>
+  inner_join(date_long, by = c("recidnum", "slot"))
+
+tb_dates <- tb_long |>
+  filter(
+    !is.na(event),
+    str_detect(event, regex("TUBER|CONSUMP|PHTH", ignore_case = TRUE))
+  ) |>
+  group_by(recidnum) |>
+  summarise(
+    tb_dates = list(date),
+    .groups = "drop"
+  )
+
+
+###### And then join everything back to tb
+
+tb_min_dates <- tb_dates |>
+  mutate(
+    tb_dates_clean = map(tb_dates, ~ .x[!is.na(.x) & .x != ""]),
+    # Replace trailing "--" with "15"
+    tb_dates_clean = map(tb_dates_clean, ~ str_replace(.x, "--$", "15")),
+    # Keep only valid 8-digit dates
+    tb_dates_clean = map(tb_dates_clean, ~ .x[str_detect(.x, "^\\d{8}$")]),
+    # Get earliest date
+    tb_first_date = map_chr(tb_dates_clean, ~ if(length(.x) == 0) NA_character_ else min(.x))
+  ) |>
+  select(recidnum, tb_first_date)
+
+tb_full <- tb |>
+  left_join(tb_min_dates, by = "recidnum") |>
+  select(recidnum, tb_first_date)
 ```
+
+\
