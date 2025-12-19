@@ -17,18 +17,16 @@ library(tidyverse)
 library(data.table)
 library(readr)
 
-mil = fread("mil_union_army.csv")
-dis = fread('dis_union_army.csv')
-msr = fread('msr_union_army.csv')
-cen = fread("cen_union_army.csv")
-cmr = fread("cmr_union_army.csv")
+mil = fread("Raw Data/mil_union_army.csv")
+dis = fread('Raw Data/dis_union_army.csv')
+msr = fread('Raw Data/msr_union_army.csv')
+cen = fread("Raw Data/cen_union_army.csv")
 
 con <- dbConnect(duckdb::duckdb(), dbdir = ":memory:", read_only = FALSE)
 duckdb::duckdb_register(con, "mil", mil %>% mutate(recidnum = as.character(recidnum)))
 duckdb::duckdb_register(con, "dis", dis %>% mutate(recidnum = as.character(recidnum)))
 duckdb::duckdb_register(con, "msr", msr %>% mutate(recidnum = as.character(recidnum)))
 duckdb::duckdb_register(con, "cen", cen %>% mutate(recidnum = as.character(recidnum)))
-duckdb::duckdb_register(con, "cmr", cmr %>% mutate(recidnum = as.character(recidnum)))
 
 options(stringsAsFactors = FALSE)
 
@@ -50,7 +48,6 @@ from mil
 full outer join dis on mil.recidnum = dis.recidnum
 full outer join msr on msr.recidnum = coalesce(mil.recidnum, dis.recidnum)
 full outer join cen on cen.recidnum = coalesce(mil.recidnum, dis.recidnum, msr.recidnum)
-full outer join cmr on cmr.recidnum = coalesce(mil.recidnum, dis.recidnum, msr.recidnum, cen.recidnum) 
 )
 
 as full_data1;
@@ -72,8 +69,6 @@ from
     on msr.recidnum = coalesce(mil.recidnum, dis.recidnum)
   full outer join cen
     on cen.recidnum = coalesce(mil.recidnum, dis.recidnum, msr.recidnum)
-  full outer join cmr
-    on cmr.recidnum = coalesce(mil.recidnum, dis.recidnum, msr.recidnum, cen.recidnum)
 )
 as full_data2;
 
@@ -131,28 +126,13 @@ full_data1 <- full_data1[, lapply(.SD, function(x) na.omit(x)[1]), by = recidnum
 full_data2 <- full_data2[, lapply(.SD, function(x) na.omit(x)[1]), by = recidnum]
 
 
-duckdb::duckdb_register(con, "full_data1", full_data1, %>% mutate(recidnum = as.character(recidnum)))
+duckdb::duckdb_register(con, "full_data1", (full_data1 |> mutate(recidnum = as.character(recidnum))))
+duckdb::duckdb_register(con, "full_data2", (full_data2 |> mutate(recidnum = as.character(recidnum))))
 
 
 
 
 ```
-
-Combining everything in SQL for TB cohort:
-
-from
-
-(
-
-select \*
-
-from full_data1
-
-full join full_data2 on full_data1.recidnum = full_data2.recidnum
-
-)
-
-as tb
 
 ```{sql connection=con, output.var="tb"}
 
@@ -206,7 +186,8 @@ from
 (
   select *
   from full_data1
-  full join full_data2 on full_data1.recidnum = full_data2.recidnum
+  full join full_data2
+    on full_data1.recidnum = full_data2.recidnum
 )
 as tb
 
@@ -342,7 +323,7 @@ WHERE REGEXP_MATCHES(a_clm01,   'TUBER|CONSUMP|PHTH')
 
 ```{r}
 
-duckdb::duckdb_register(con, "tb", tb, %>% mutate(recidnum = as.character(recidnum)))
+duckdb::duckdb_register(con, "tb", tb |> mutate(recidnum = as.character(recidnum)))
 
 ```
 
@@ -364,7 +345,7 @@ WHERE recidnum NOT IN (
 
 ```
 
-Removing all empty rows:
+Removing all empty columns:
 
 ```{r}
 
@@ -376,10 +357,10 @@ tb %>%
 
 empty <- c("a_clst11", "a_clst12", "a_dis16", "a_dis17", "a_dis18", "a_dis19", "a_dis20", "a_dis21", "a_dis22", "a_mlsta4", "a_mlsta5", "a_occqc2", "a_ocdsc3", "gen_a_ococn4", "gen_a_ococn5", "a_ocpat4", "a_ocpat5", "gen_a_ococd4", "gen_a_ococd5", "afdesc08", "afdesc09", "afdesc10", "afdesc11", "afdesc13", "afdvdt08", "afdvdt09", "afdvdt10", "afdvdt11", "afdvdt13", "afdvdt17", "afdvdt20", "afdvqc03", "afdvqc05", "afdvqc06", "c_rel08", "c_rel09", "c_rel10", "c_rel11", "c_rel12", "c_rel13", "c_rel14", "cd_whn3", "cd_whn4", "cd_whn5", "dponet08", "dponet09", "dponet10", "dponet11", "dponet13", "dponet19", "dponet20", "dschqc10", "dschqc13", "dschqc20", "dthcs14", "dthcs15", "dthdt15", "dthqc09", "dthqc11", "dthqc12", "dthqc13", "dthqc14", "dthqc15", "dthqc16", "dthqc20", "g_rel08", "g_rel09", "g_rel10", "g_rel11", "g_rel12", "g_rel13", "g_rel14", "g_rel15", "g_rel16", "h_rel106", "h_rel107", "h_rel108", "h_rel109", "h_rel110", "h_rel111", "h_rel203", "h_rel204", "h_rel205", "h_rel206", "h_rel207", "h_rel208", "h_rel209", "h_rel210", "h_rel301", "h_rel302", "h_rel303", "h_rel304", "h_rel401", "h_rel402", "h_rel403", "i_cmt3", "i_cur3", "i_cur4", "i_eff121", "i_eff122", "i_eff123", "i_eff124", "i_eff125", "i_eff126", "i_eff203", "i_eff204", "i_eff205", "i_eff206", "i_eff207", "i_eff208", "i_eff209", "i_eff210", "i_eff211", "i_eff212", "i_eff213", "i_eff214", "i_eff215", "i_eff216", "i_eff217", "i_eff218", "i_eff219", "i_eff220", "i_eff221", "i_eff222", "i_eff223", "i_eff224", "i_eff301", "i_eff302", "i_eff303", "i_eff304", "i_eff305", "i_eff306", "i_eff307", "i_eff308", "i_eff309", "i_eff310", "i_eff311", "i_eff312", "i_eff313", "i_eff314", "i_eff315", "i_eff316", "i_eff317", "i_eff318", "i_eff401", "i_eff402", "i_eff403", "i_eff404", "i_eff405", "i_fev4", "i_fev5", "i_rel111", "i_rel112", "i_rel113", "i_rel114", "i_rel115", "i_rel116", "i_rel208", "i_rel209", "i_rel301", "i_rel302", "i_rel303", "i_rel304", "i_rel305", "i_rel306", "i_rel401", "i_rel402", "i_rel403", "i_whn12", "i_whn13", "i_whn22", "i_whn31", "i_whn41", "i_whr12", "i_whr13", "i_whr21", "i_whr31", "ilwdqc06", "ilwdqc08", "ilwdqc09", "ilwdqc10", "ilwdqc11", "ilwdqc12", "ilwdqc13", "ilwdqc20", "info1t08", "info1t09", "info1t10", "info1t11", "info1t13", "info1t17", "info2t04", "info2t07", "info2t08", "infoqc07", "infoqc08", "infoqc09", "infoqc13", "k_rel6", "k_rel7", "k_rel8", "k_rel9", "l_rel07", "l_rel08", "l_rel09", "l_rel10", "l_rel11", "lsdys1_3", "lsdys2_1", "lsdys2_2", "lsdys2_3", "lsmth2_1", "lsyrs2_3", "lscnt2_3", "m_rel08", "m_rel09", "m_rel10", "m_rel11", "m_rel12", "m_rel13", "m_rel14", "n_rel07", "n_rel08", "n_rel09", "n_rel10", "n_rel11", "n_rel12", "n_rel13", "n_rel14", "othrrn19", "othrqc07", "othrqc08", "othrqc10", "othrqc11", "othrqc13", "othrqc14", "othrqc15", "othrqc18", "othrqc19", "p_bre6", "pb_frq14", "pb_frq23", "pb_frq24", "pb_frq25", "pb_frq32", "pb_frq33", "pb_frq41", "pb_frq42", "pb_frq51", "pb_frq61", "p_cmt6", "pc_ds7", "pc_ds8", "pc_fr6", "p_lrs6", "p_lrs7", "pl_frq13", "pl_frq14", "pl_frq15", "pl_frq16", "pl_frq22", "pl_frq23", "pl_frq32", "pl_frq33", "pl_frq42", "pl_frq51", "pl_frq52", "pl_frq61", "p_rel11", "p_rel12", "p_rel13", "p_rel14", "p_rel15", "p_rel16", "p_snd10", "p_snd11", "p_snd12", "p_snd13", "p_snd14", "p_urs15", "p_urs16", "p_urs17", "p_urs18", "p_urs19", "p_urs20", "p_urs21", "p_urs22", "p_urs23", "p_urs24", "p_urs25", "p_urs26", "q_rel09", "q_rel10", "q_rel11", "q_rel12", "q_rel13", "q_rel14", "r_rel10", "r_rel11", "r_rel12", "r_rel13", "r_rel14", "r_rel15", "r_rel16", "result20", "ro_tdt10", "ro_tqc10", "rtndpl12", "rtndpl14", "rtndpl15", "rtndpl17", "rtndpl18", "rtndpl20", "rtndqc12", "rtndqc15", "rtndqc17", "rtndqc19", "rw_amt15", "rw_des15", "rw_ind15", "rw_inf15", "rw_ins15", "rw_iqc09", "rw_iqc10", "rw_iqc11", "rw_iqc12", "rw_iqc13", "rw_iqc14", "rw_iqc15", "unftc2_2", "unftc2_3", "unftd2_2", "x_ext13", "x_ext14", "x_ext23", "x_ext24", "x_ext32", "x_ext33", "x_ext34", "x_ext42", "x_ext43")
 
-tb <- tb %>% select(-all_of(empty))
+tb <- tb |> select(-all_of(empty))
 
 
-ntb %>%
+ntb |>
   select(where(~ all(is.na(.) | . == ""))) %>%
   names()
 
@@ -392,12 +373,12 @@ Birth Year
 
 ```{r}
 
-#################################### TB Cohort ######################################
+#################################### Birth Year ######################################
 
 ################## Create Dataframe w all age/date variables
 
-tb_birth <- all %>%
-  select(
+all_birth <- all |>
+  select(recidnum,
     rb_date1, rb_date2, rb_dtqc1, rb_dtqc2,
     recbyr_0, a_xmdate, a_xmdtqc, a_age, a_ageqc,
     lstag1_1, lstag1_2, lstag1_3,
@@ -407,58 +388,80 @@ tb_birth <- all %>%
     lsdqc1_1, lsdqc1_2, lsdqc1_3,
     lsdqc2_1, lsdqc2_2, lsdqc2_3,
     recage_5, recage_6, recabd_0, recabd_1
-  ) %>%
-as.data.frame()
+  ) |>
+  as.data.frame()
 
 
-tb_birth$YEAR <-
-  ifelse(                                                                 #if census, census
-    !is.na(tb_birth[,5]) & tb_birth[,5] !="" & tb_birth[,5] <2000,
-    tb_birth[,5],
-    ifelse(                     
-      !is.na(tb_birth[,30]) & tb_birth[,30] !="" & tb_birth[,30] <110,
-      (1900 - as.numeric(tb_birth[,30])),
-      ifelse(
-        !is.na(tb_birth[,31]) & tb_birth[,31] !="" & tb_birth[,31] <110,
-        (1910 - as.numeric(tb_birth[,31])),
-        ifelse(                                                       
-          !is.na(tb_birth[,29]) & tb_birth[,29] !="" & tb_birth[,29] <110,
-          (1860 - as.numeric(tb_birth[,29])),
-          ifelse(  
-            !is.na(tb_birth[,28]) & tb_birth[,28] !="" & tb_birth[,28] <110,
-            (1850 - as.numeric(tb_birth[,28])),
-            ifelse(                                                
-              !is.na(tb_birth[,6]) & tb_birth[6] !="",                      
-              (as.numeric(substr(tb_birth[,6], 1, 4))-as.numeric(tb_birth[,8])),
-              ifelse(
-                  tb_birth[,3] == 'B',
-                  tb_birth[,1],
-                  ifelse(                                    #if code B, use rb_date2
-                    tb_birth[,4] == 'B',
-                    tb_birth[,2],
-                    tb_birth[,1]                             #if census n/a, use rb_date1
-                      
-))))))))
+# Standardize NAs, coerce numerics, isolate year in date
+
+remove_blank <- function(x){
+  x <- x |>
+    mutate(across(everything(), ~if_else(.x == "", NA, .x)))
+  return(x)
+}
+
+all_birth <- remove_blank(all_birth) |>
+  mutate(
+    a_age = as.numeric(a_age),
+    across(rb_date1:rb_date2, ~as.numeric(substr(.x, 1, 4))),
+    across(recbyr_0:a_xmdate, ~as.numeric(substr(.x, 1, 4))),
+    across(lstag1_1:lstag2_3, as.numeric),
+    across(lstdt1_1:lstdt2_3, ~as.numeric(substr(.x, 1, 4))),
+    across(recage_5:recabd_1, as.numeric),
+  ) 
+  
 
 
+all_birth <- all_birth |>
+  mutate(
+    BYR = case_when(
+      
+    # birth yr via 1900 census when directly recorded
+    !is.na(recbyr_0) & recbyr_0 <2000 ~
+      recbyr_0,
+    
+    # birth yr via age at census (in order of reliability)
+    !is.na(recabd_0) & recabd_0 < 110 & recabd_0 > 35 ~
+      1900 - recabd_0,
+    !is.na(recabd_1) & recabd_1 < 110 & recabd_0 > 45 ~
+      1910 - recabd_1,
+    !is.na(recage_6) & recage_6 < 110 ~
+      1860 - recage_6,
+    !is.na(recage_5) & recage_5 < 110 ~
+      1850 - recage_5,
+    
+    # birthyear from mandatory physical exam given when applying for pension
+    !is.na(a_xmdate) ~ a_xmdate - a_age,
+    
+    # use TRUSTED enlistment byr's w/ quality code "B"(subject to age inflation)
+    rb_dtqc1 == "B"  ~ rb_date1,
+    rb_dtqc2 == "B"  ~ rb_date2,
+    
+    
+    # use all enlistment byrs
+    !is.na(rb_date1) ~ rb_date1,
+    TRUE ~ rb_date2
+)) |>
+  mutate(
+    x1_1 = lstdt1_1 - lstag1_1,
+    x1_2 = lstdt1_2 - lstag1_2,
+    x1_3 = lstdt1_3 - lstag1_3,
+    x2_1 = lstdt2_1 - lstag2_1,
+    x2_2 = lstdt2_2 - lstag2_2,
+    x2_3 = lstdt2_3 - lstag2_3
+  ) |>
+  
+  # Step 3: compute row-wise mean of all six differences
+  mutate(
+    lst_byr_mean = rowMeans(across(x1_1:x2_3), na.rm = TRUE),
+    BYR = coalesce(BYR, lst_byr_mean),
+    BYR = case_when(
+      BYR < 1865 & BYR > 1780 ~BYR,
+      TRUE ~ NA
+    )
+  )
 
-x1_1 <- as.numeric(substr(tb_birth$lstdt1_1, 1, 4)) - tb_birth$lstag1_1
-x1_2 <- as.numeric(substr(tb_birth$lstdt1_2, 1, 4)) - tb_birth$lstag1_2
-x1_3 <- as.numeric(substr(tb_birth$lstdt1_3, 1, 4)) - tb_birth$lstag1_3
-x2_1 <- as.numeric(substr(tb_birth$lstdt2_1, 1, 4)) - tb_birth$lstag2_1
-x2_2 <- as.numeric(substr(tb_birth$lstdt2_2, 1, 4)) - tb_birth$lstag2_2
-x2_3 <- as.numeric(substr(tb_birth$lstdt2_3, 1, 4)) - tb_birth$lstag2_3
-
-tb_lst <- cbind(x1_1, x1_2, x1_3, x2_1, x2_2, x2_3)
-tb_lst <- as.data.frame(tb_lst)
-
-lst_tb_birth <- tb_birth %>%
-  filter(YEAR == "" | is.na(YEAR)) %>%
-  select(lstag1_1:lsdqc2_3)
-
-avg_tb_lst <- tb_lst %>%
-  mutate(across(where(is.character), as.numeric)) %>% 
-  mutate(row_mean = rowMeans(across(where(is.numeric)), na.rm = TRUE))
+hist(all_birth$BYR)
 
 tb_birth$YEAR <-
 ifelse(
@@ -538,148 +541,6 @@ tb_birth$YEAR_cd <-
 
 
 
-################################# Non-TB Cohort ####################################
-
-ntb_birth <- ntb %>%
-  select(
-    rb_date1, rb_date2, rb_dtqc1, rb_dtqc2,
-    recbyr_0, a_xmdate, a_xmdtqc, a_age, a_ageqc,
-    lstag1_1, lstag1_2, lstag1_3,
-    lstag2_1, lstag2_2, lstag2_3,
-    lstdt1_1, lstdt1_2, lstdt1_3,
-    lstdt2_1, lstdt2_2, lstdt2_3,
-    lsdqc1_1, lsdqc1_2, lsdqc1_3,
-    lsdqc2_1, lsdqc2_2, lsdqc2_3,
-    recage_5, recage_6, recabd_0, recabd_1
-  ) %>%
-as.data.frame()
-
-
-ntb_birth$YEAR <-
-  ifelse(                                                                 #if census, census
-    !is.na(ntb_birth[,5]) & ntb_birth[,5] !="" & ntb_birth[,5] <2000,
-    ntb_birth[,5],
-    ifelse(                     
-      !is.na(ntb_birth[,30]) & ntb_birth[,30] !="" & ntb_birth[,30] <110,
-      (1900 - as.numeric(ntb_birth[,30])),
-      ifelse(
-        !is.na(ntb_birth[,31]) & ntb_birth[,31] !="" & ntb_birth[,31] <110,
-        (1910 - as.numeric(ntb_birth[,31])),
-        ifelse(                                                       
-          !is.na(ntb_birth[,29]) & ntb_birth[,29] !="" & ntb_birth[,29] <110,
-          (1860 - as.numeric(ntb_birth[,29])),
-          ifelse(  
-            !is.na(ntb_birth[,28]) & ntb_birth[,28] !="" & ntb_birth[,28] <110,
-            (1850 - as.numeric(ntb_birth[,28])),
-            ifelse(                                                
-              !is.na(ntb_birth[,6]) & ntb_birth[6] !="",                      
-              (as.numeric(substr(ntb_birth[,6], 1, 4))-as.numeric(ntb_birth[,8])),
-              ifelse(
-                  ntb_birth[,3] == 'B',
-                  ntb_birth[,1],
-                  ifelse(                                    #if code B, use rb_date2
-                    ntb_birth[,4] == 'B',
-                    ntb_birth[,2],
-                    ntb_birth[,1]                             #if census n/a, use rb_date1
-                      
-))))))))
-
-
-
-x1_1 <- as.numeric(substr(ntb_birth$lstdt1_1, 1, 4)) - ntb_birth$lstag1_1
-x1_2 <- as.numeric(substr(ntb_birth$lstdt1_2, 1, 4)) - ntb_birth$lstag1_2
-x1_3 <- as.numeric(substr(ntb_birth$lstdt1_3, 1, 4)) - ntb_birth$lstag1_3
-x2_1 <- as.numeric(substr(ntb_birth$lstdt2_1, 1, 4)) - ntb_birth$lstag2_1
-x2_2 <- as.numeric(substr(ntb_birth$lstdt2_2, 1, 4)) - ntb_birth$lstag2_2
-x2_3 <- as.numeric(substr(ntb_birth$lstdt2_3, 1, 4)) - ntb_birth$lstag2_3
-
-ntb_lst <- cbind(x1_1, x1_2, x1_3, x2_1, x2_2, x2_3)
-ntb_lst <- as.data.frame(ntb_lst)
-
-lst_ntb_birth <- ntb_birth %>%
-  filter(YEAR == "" | is.na(YEAR)) %>%
-  select(lstag1_1:lsdqc2_3)
-
-avg_ntb_lst <- ntb_lst %>%
-  mutate(across(where(is.character), as.numeric)) %>% 
-  mutate(row_mean = rowMeans(across(where(is.numeric)), na.rm = TRUE))
-
-ntb_birth$YEAR <-
-ifelse(
-  ntb_birth[,27] == 'B',
-  (as.numeric(substr(ntb_birth[,21], 1, 4))-as.numeric(ntb_birth[,15])),
-  ifelse(
-    ntb_birth[,26] == 'B',
-    (as.numeric(substr(ntb_birth[,20], 1, 4))-as.numeric(ntb_birth[,14])),
-    ifelse(
-      ntb_birth[,25] == 'B',
-      (as.numeric(substr(ntb_birth[,19], 1, 4))-as.numeric(ntb_birth[,13])),
-      ifelse(
-        ntb_birth[,24] == 'B',
-        (as.numeric(substr(ntb_birth[,18], 1, 4))-as.numeric(ntb_birth[,12])),
-        ifelse(
-          ntb_birth[,23] == 'B',
-          (as.numeric(substr(ntb_birth[,17], 1, 4))-as.numeric(ntb_birth[,11])),
-          ifelse(
-            ntb_birth[,22] == 'B',
-            (as.numeric(substr(ntb_birth[,16], 1, 4))-as.numeric(ntb_birth[,10])),
-            ifelse(
-              !is.na(avg_ntb_lst[,7]) & avg_ntb_lst[,7] !="",
-              as.numeric(avg_ntb_lst[,7]),
-              ntb_birth[,1])
-))))))
-
-
-ntb_birth$YEAR_cd <-
-  ifelse(                                                        #if census, census
-    !is.na(ntb_birth[,5]) & ntb_birth[,5] !="" & ntb_birth[,5] <2000,
-    '0',
-    ifelse(                     
-      !is.na(ntb_birth[,30]) & ntb_birth[,30] !="" & ntb_birth[,30] <110,
-      '0',
-      ifelse(
-        !is.na(ntb_birth[,31]) & ntb_birth[,31] !="" & ntb_birth[,31] <110,
-        '0a',
-        ifelse(                                             #if code B, use rb_date1
-          !is.na(ntb_birth[,29]) & ntb_birth[,29] !="" & ntb_birth[,29] <110,
-          '0b',
-          ifelse(  
-            !is.na(ntb_birth[,28]) & ntb_birth[,28] !="" & ntb_birth[,28] <110,
-            '0c',
-            ifelse(                                                #age at last exam
-              !is.na(ntb_birth[,6]) & ntb_birth[6] !="",                      
-              '1',
-              ifelse(
-                ntb_birth[,3] == 'B',
-                '2a',
-                ifelse(                                       #if code B, use rb_date2
-                  ntb_birth[,4] == 'B',
-                  '2b',
-                  ifelse(
-                    ntb_birth[,27] == 'B',
-                    '3a',
-                    ifelse(
-                      ntb_birth[,26] == 'B',
-                      '3b',
-                      ifelse(
-                        ntb_birth[,25] == 'B',
-                        '3c',
-                        ifelse(
-                          ntb_birth[,24] == 'B',
-                          '3d',
-                          ifelse(
-                            ntb_birth[,23] == 'B',
-                            '3e',
-                            ifelse(
-                              ntb_birth[,22] == 'B',
-                              '3f',
-                              ifelse(
-                                !is.na(avg_ntb_lst[,7]) & avg_ntb_lst[,7] !="",
-                                '4',
-                                '5'                    #if census n/a, use rb_date1
-              
-    )))))))))))))))
-
 
 yr <- cbind(c(tb_birth$YEAR, ntb_birth$YEAR), c(tb_birth$YEAR_cd, ntb_birth$YEAR_cd))
 
@@ -699,7 +560,32 @@ table(yr[,2])
 
 Death Year
 
-```{r}
+```{r death}
+
+all_death <- all |>
+  select(
+    rd_date, rd_dtqc, dthdt01, dthdt02, dthdt03, dthdt04, dthdt05, dthdt06,
+    dthdt07, dthdt08, dthdt09, dthdt10, dthdt11, dthdt12, dthdt13, dthdt14,
+    dthdt15, dthdt16, dthdt17, dthdt18, dthdt19, dthdt20
+  ) |>
+as.data.frame()
+
+
+all_death <- remove_blank(all_death) |>
+  mutate(
+    DYR = case_when(
+      !is.na(rd_date) ~ substr(rd_date, 1,4),
+      TRUE ~ NA)
+  ) |>
+  rowwise() |>
+  mutate(
+    DYR = coalesce(rd_date, c_across(dthdt01:dthdt20))
+  ) |>
+  ungroup()
+
+non_na(all_death$DYR)
+
+
 
 ```
 
