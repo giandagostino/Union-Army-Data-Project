@@ -399,7 +399,7 @@ To further analyze these recruits, we want to separate them into case archetypes
 
 \## dschrn[]
 
-```{r buckets}
+```{r buckets include=FALSE}
 
 # TB to death
 

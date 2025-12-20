@@ -887,7 +887,7 @@ plot(km_fit,
 lines(km_fit$time, km_fit$upper, lty = 2, col = "red")
 lines(km_fit$time, km_fit$lower, lty = 2, col = "red")
 
-
+print(km_fit)
 
 
 # Calculate time since TB mention and censoring
@@ -915,6 +915,12 @@ plot(km_fit,
 # Optional: add confidence intervals
 lines(km_fit$time, km_fit$upper, lty = 2, col = "red")
 lines(km_fit$time, km_fit$lower, lty = 2, col = "red")
+
+print(km_fit)
+
+hist(surv_tb$time_since_tb)
+hist(surv_tb$end_age)
+hist(surv_tb$tb_first_date)
 
 
 ```
