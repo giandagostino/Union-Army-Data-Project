@@ -26,8 +26,6 @@ Determining long-term effects of Tuberculosis Pre-Treatment using Union Army Sol
       <td>1850, 1860, 1900, 1910 Federal Census Records</td>
     </tr>
     <tr>
-      <td>cmr</td>
-      <td>Carded Medical Records</td>
     </tr>
   </tbody>  
 </table>
