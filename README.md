@@ -76,8 +76,9 @@ To resolve inconsistencies in birth and death years (of which there were many), 
 
 ## Analytical Methods
 
-### Survival Analysis
-TB-affected soliders with reliable
+### Timeline
+
+### Survival
 
 ## Results
 
