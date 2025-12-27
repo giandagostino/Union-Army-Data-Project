@@ -1,5 +1,9 @@
 # Union Army Dataset
 Determining long-term effects of Tuberculosis Pre-Treatment using Union Army Soldiers
+* 
+*
+*
+
 #### Dataset Description
 <table>
   <thead>
@@ -30,9 +34,13 @@ Determining long-term effects of Tuberculosis Pre-Treatment using Union Army Sol
   </tbody>  
 </table>
 
+## Cohort
 
+## Methods
 
+## Results
 
+## Limitations
 
 
 
