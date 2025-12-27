@@ -39,7 +39,7 @@ Determining long-term effects of Tuberculosis (TB) Pre-Treatment using Union Arm
 
 This dataset is particularly useful because the entire observation period predates effective tuberculosis treatment, eliminating this as a time-varying confounder. As a result, differences in survival can be interpreted as reflecting underlying demographic, environmental, and service-related factors rather than changes in treatment access or efficacy.
 
-I compiled all of these records into a single dataset (`all`) by each recruit's unique `recidnum`
+I compiled all of these records into a single dataset (`all`) by each recruit's unique `recidnum`.
 
 ## Cleaning and Cohorts
 The 39,339 soldiers were separated into into two cohorts, `tb` and `ntb`. Recruits were put in the `tb` bucket if, anywhere in their records, there was any mention of the substrings `"tuber"`,
