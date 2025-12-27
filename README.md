@@ -46,7 +46,6 @@ The 39,339 soldiers were separated into into two cohorts, `tb` and `ntb`. Recrui
 `"consump"`, or `"phth"`. Tuberculosis, consumption, and phthisis, were all common ways of referring to TB during this time.
 
 <table>
-  <caption>Dataset Overview</caption>
 
   <thead>
     <tr>
