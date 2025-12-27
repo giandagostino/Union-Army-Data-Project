@@ -42,7 +42,7 @@ This dataset is particularly useful because the entire observation period predat
 I compiled all of these records into a single dataset (`all`) by each recruit's unique `recidnum`.
 
 ## Cleaning and Cohorts
-The 39,339 soldiers were separated into into two cohorts, `tb` and `ntb`. Recruits were put in the `tb` bucket ifif any of the substrings "`[tuber]`", "`[consump]`", or "`[phth]`" appeared anywhere in their records. Tuberculosis, consumption, and phthisis were all common ways of referring to TB during this time.
+The 39,339 soldiers were separated into into two cohorts, `tb` and `ntb`. Recruits were put in the `tb` bucket if any of the substrings "`[tuber]`", "`[consump]`", or "`[phth]`" appeared anywhere in their records. Tuberculosis, consumption, and phthisis were all common ways of referring to TB during this time.
 
 <table>
 
