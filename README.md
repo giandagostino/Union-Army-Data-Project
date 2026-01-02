@@ -98,9 +98,10 @@ The prevalence of these discrepannsies proved to be too major to be able to move
 
 Survival analysis was used to track lifespans of recruits with TB. The data points used included date of birth, date of first TB mention, and date of death. From this, we could plot a Kaplan-Meier survival curve for all TB-afflicted recruits from borth to death as well as first mention of TB to death.
 
-## Results
+## Images
 
-[image]
+![](images/dates_eda.jpeg)
+![](images/survival_tb.png)
 
 ## Limitations
 
