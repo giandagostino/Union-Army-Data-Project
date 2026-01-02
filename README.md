@@ -3,6 +3,13 @@ Analyzing Long-Term Effects of Tuberculosis (TB) Before Treatment Using Union Ar
 * What are the survival rates for TB-affected soldiers compared to other soldiers?
 * What are the differences in enlistment and hospitilization timelines between the two cohorts? 
 
+- `scripts/` — data exploration and preprocessing
+- `analysis/` — R Markdown analyses and modeling
+- `data/` — raw and processed datasets (not tracked)
+
+## At-a-Glance
+
+
 #### Dataset Description
 <table>
   <thead>
