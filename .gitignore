@@ -12,10 +12,8 @@
 .RDataTmp*
 
 
-# All raw datasets
-Raw Data/
+# All datasets
+data/
 
-# All in progress datasets
-Datasets In Progress/
-
-# Projectfile
+# Project File
+*.Rproj
