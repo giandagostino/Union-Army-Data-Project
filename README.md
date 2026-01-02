@@ -100,8 +100,8 @@ Survival analysis was used to track lifespans of recruits with TB. The data poin
 
 ## Images
 
-![](images/dates_eda.jpeg)
-![](images/survival_tb.png)
+![](images/dates_eda.png)
+![](images/survival_tb.jpeg)
 
 ## Limitations
 
