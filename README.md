@@ -21,7 +21,7 @@ Analyzing Long-Term Effects of Tuberculosis (TB) Before Treatment Using Union Ar
 **Tools:** R (dplyr, stringr, survival), SQL (RSQLite, duckdb)
 
 
-# Full Project Descriptions
+# Full Project Description
 
 #### Datasets
 <table>
