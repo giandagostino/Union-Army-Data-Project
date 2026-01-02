@@ -958,55 +958,27 @@ count_repeated <- rlst_hosp %>%
 
 15607/39338
 
-repeat_type_counts <- rlst_hosp %>%
+repeat_type_counts <- rlst_hosp |>
   pivot_longer(
     cols = all_of(event_cols),
     names_to = "event_type_raw",
     values_to = "event_date_raw"
-  ) %>%
+  ) |>
   mutate(
     event_date = ymd(event_date_raw, quiet = TRUE),
     event_category = map_event_category(event_type_raw)
-  ) %>%
-  filter(!is.na(event_date)) %>%        # drop unparseable rows
-  arrange(recidnum, event_date) %>%
-  group_by(recidnum) %>%
+  ) |>
+  filter(!is.na(event_date)) |>        # drop unparseable rows
+  arrange(recidnum, event_date) |>
+  group_by(recidnum) |>
   mutate(
     is_repeat = event_category == lag(event_category) &
       event_category != "enlistment"       # enlistment repeats ignored
-  ) %>%
-  ungroup() %>%
-  filter(is_repeat) %>%                  # keep only repeated consecutive categories
+  ) |>
+  ungroup() |>
+  filter(is_repeat) |>                  # keep only repeated consecutive categories
   count(event_category, name = "repeat_count")
 
-
-print(colnames)
-
-
-
-install.packages(
-  "rsthemes",
-  repos = c(gadenbuie = 'https://gadenbuie.r-universe.dev', getOption("repos"))
-)
-
-rsthemes::install_rsthemes(include_base16 = TRUE)
-rsthemes::install_rsthemes()
-rsthemes::try_rsthemes("dark")
-
-
-
-############  Time Spent in Hospital for TB-affected ind  ######################
-
-
-###############################################################################
-########################   Stat Learning ideas  ###############################
-###############################################################################
-
-######################  Supervised
-
-
-
-######################  Unsupervised
 
 
 
