@@ -8,6 +8,8 @@
 .RDataTmp3
 .RDataTmp3
 .RDataTmp4
+.RDataTmp5
+.RDataTmp*
 
 
 # All raw datasets
@@ -15,3 +17,5 @@ Raw Data/
 
 # All in progress datasets
 Datasets In Progress/
+
+# Projectfile
