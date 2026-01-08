@@ -13,7 +13,7 @@ Analyzing Long-Term Effects of Tuberculosis (TB) Before Treatment Using Union Ar
 | Feature | Details |
 |---------|---------|
 | **Data** | ~40,000 individual records (demographics, health markers, dates, outcomes) |
-| **Methods** | Data cleaning & standardization, exploratory visualization, survival analysis, regression modeling in R |
+| **Methods** | Data cleaning, merging, and standardization; exploratory visualization, survival analysis, regression modeling in R |
 | **Status** | Data cleaning ✅ Exploratory analysis 🔄 Statistical modeling 🔄
 | **Tools** | R (dplyr, stringr, survival), SQL (RSQLite, duckdb) |
 
