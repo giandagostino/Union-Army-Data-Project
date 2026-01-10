@@ -375,30 +375,6 @@ hosp <- as.data.frame(t(apply(remove_blank(hosp), 1, cln_dupl)))
 
 ## Recruit Buckets
 
-To further analyze these recruits, we want to separate them into case archetypes:
-
--   TB to death
-
-    -   Early diers (\<1 year)
-
-    -   Moderate ()
-
-    -   Resistant ()
-
--   Enlistment 1 to TB
-
--   Enlistment 1 to discharge final
-
-\## a_brtcnt
-
-\## a_clm[01-08]
-
-\## a_clst[01,02,07]
-
-\## afdesc[01,02,07]
-
-\## dschrn[]
-
 ```{r buckets include=FALSE}
 
 # TB to death
@@ -601,4 +577,4 @@ tb_full <- tb |>
   select(recidnum, tb_first_date)
 ```
 
-\
+\*\* Too many consistencies, timeline idea was scrapped from here \*\*
