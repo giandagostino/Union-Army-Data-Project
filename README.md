@@ -10,8 +10,16 @@ Analyzing Long-Term Effects of Tuberculosis (TB) Before Treatment Using Union Ar
 
 ## At-a-Glance
 
+| Feature | Details |
+|---------|---------|
+| **Data** | ~40,000 individual records (demographics, health markers, dates, outcomes) |
+| **Methods** | Data cleaning, merging, and standardization; exploratory visualization, survival analysis, regression modeling in R |
+| **Status** | Data cleaning ✅ Exploratory analysis 🔄 Statistical modeling 🔄
+| **Tools** | R (dplyr, stringr, survival), SQL (RSQLite, duckdb) |
 
-#### Dataset Description
+# Full Project Description
+
+#### Datasets
 <table>
   <thead>
     <tr>
@@ -98,9 +106,10 @@ The prevalence of these discrepannsies proved to be too major to be able to move
 
 Survival analysis was used to track lifespans of recruits with TB. The data points used included date of birth, date of first TB mention, and date of death. From this, we could plot a Kaplan-Meier survival curve for all TB-afflicted recruits from borth to death as well as first mention of TB to death.
 
-## Results
+## Images
 
-[image]
+![](images/dates_eda.png)
+![](images/survival_tb.jpeg)
 
 ## Limitations
 
