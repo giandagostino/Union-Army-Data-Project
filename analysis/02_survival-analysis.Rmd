@@ -1,31 +1,42 @@
 ---
 title: "02_survival-analysis"
 output: html_document
-date: "2026-01-10"
+date: "2026-01-30"
 ---
-
 
 ## Survival Analysis
 
-```{r setup echo=FALSE}
+```{r setup, echo=FALSE}
 
 library(tidyverse)
 library(survival)
+library(data.table)
 
 
-ntb <- fread("data/in-progress/ntb_v4.csv")
-tb <- fread("data/in-progress/tb_v5.csv")
+ntb <- fread("../data/in-progress/ntb_v4.csv")
+tb <- fread("../data/in-progress/tb_v5.csv")
 
+# Important functions
+
+remove_blank <- function(x){
+  x <- x |>
+    mutate(across(everything(), ~if_else(.x == "", NA, .x)))
+  return(x)
+}
+
+cln_dupl <- function(x){
+  x[duplicated(x)] <- NA
+  return(x)
+}
 ```
-
-
-
 
 Now let's try to fit a Kaplan-Meier curve to the people with tuberculosis mentioned in their record.
 
 Start by finding the first date that is associated with a mention of TB
 
 ```{r}
+
+tb$recidnum <- as.character(tb$recidnum)
 
 tb_date_date <- remove_blank(tb) |>
   select(recidnum,
@@ -300,8 +311,6 @@ hist(surv_tb$tb_first_date)
 
 ```
 
-
-
 KM Plot
 
-```{r setup, include=FALSE}
+\`\`\`{r setup, include=FALSE}

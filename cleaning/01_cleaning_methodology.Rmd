@@ -17,10 +17,10 @@ library(tidyverse)
 library(data.table)
 library(readr)
 
-mil = fread("Raw Data/mil_union_army.csv")
-dis = fread('Raw Data/dis_union_army.csv')
-msr = fread('Raw Data/msr_union_army.csv')
-cen = fread("Raw Data/cen_union_army.csv")
+mil = fread("../data/raw/mil_union_army.csv")
+dis = fread('../data/raw/dis_union_army.csv')
+msr = fread('../data/raw/msr_union_army.csv')
+cen = fread("../data/raw/cen_union_army.csv")
 
 con <- dbConnect(duckdb::duckdb(), dbdir = ":memory:", read_only = FALSE)
 duckdb::duckdb_register(con, "mil", mil %>% mutate(recidnum = as.character(recidnum)))
@@ -54,7 +54,7 @@ as full_data1;
 
 ```
 
-Chunk 2:a
+Chunk 2:
 
 ```{sql connection=con, output.var="full_data2"}
 
@@ -138,49 +138,6 @@ duckdb::duckdb_register(con, "full_data2", (full_data2 |> mutate(recidnum = as.c
 
 
 select distinct *
-/* 
-
-Recruit ID/Name
-
-Age/Birth:
-a_age as a.age
-a_ageqc as a.ageqc
-ageinj as a.inj
-lstag as a.lst
-recabd as a.rbd
-recage as a.rcag
-### pension bpl ###
-a_brtcnt as b.cnt
-a_brtcty as b.cty
-a_brthqc as b.cqc
-a_brthst as b.st
-gen_claimant_birthplace_icpsr b.clpl.icpsr
-### rec bpl ###
-gen_rb_cnty_icpsr b.rcnt.icpsr
-gen_rb_stat_icpsr b.rst.icpsr
-gen_birthplace_icpsr b.pl.icpsr
-
-
-Death
-
-
-Geography
-
-Enlistment
-
-Discharge
-
-Employment
-
-Hospital Admit
-
-Respiratory Illness
-
-Service Info
-
-Extra Info
-
-*/
 
 from 
 (
@@ -325,7 +282,9 @@ WHERE REGEXP_MATCHES(a_clm01,   'TUBER|CONSUMP|PHTH')
 
 ```{r}
 
-duckdb::duckdb_register(con, "tb", tb |> mutate(recidnum = as.character(recidnum)))
+duckdb_register(con, "tb", tb |> mutate(recidnum = as.character(recidnum)))
+duckdb_register(con, "full_data1", full_data1 |> mutate(recidnum = as.character(recidnum)))
+duckdb_register(con, "full_data2", full_data2 |> mutate(recidnum = as.character(recidnum)))
 
 ```
 
@@ -343,8 +302,6 @@ WHERE recidnum NOT IN (
   SELECT DISTINCT recidnum
   FROM tb
 );
-
-
 
 
 ```
@@ -479,55 +436,6 @@ all_birth <- all_birth |>
 
 
 
-tb_birth$YEAR_cd <-
-  ifelse(                                                        #if census, census
-    !is.na(tb_birth[,5]) & tb_birth[,5] !="" & tb_birth[,5] <2000,
-    '0',
-    ifelse(                     
-      !is.na(tb_birth[,30]) & tb_birth[,30] !="" & tb_birth[,30] <110,
-      '0',
-      ifelse(
-        !is.na(tb_birth[,31]) & tb_birth[,31] !="" & tb_birth[,31] <110,
-        '0a',
-        ifelse(                                             #if code B, use rb_date1
-          !is.na(tb_birth[,29]) & tb_birth[,29] !="" & tb_birth[,29] <110,
-          '0b',
-          ifelse(  
-            !is.na(tb_birth[,28]) & tb_birth[,28] !="" & tb_birth[,28] <110,
-            '0c',
-            ifelse(                                                #age at last exam
-              !is.na(tb_birth[,6]) & tb_birth[6] !="",                      
-              '1',
-              ifelse(
-                tb_birth[,3] == 'B',
-                '2a',
-                ifelse(                                       #if code B, use rb_date2
-                  tb_birth[,4] == 'B',
-                  '2b',
-                  ifelse(
-                    tb_birth[,27] == 'B',
-                    '3a',
-                    ifelse(
-                      tb_birth[,26] == 'B',
-                      '3b',
-                      ifelse(
-                        tb_birth[,25] == 'B',
-                        '3c',
-                        ifelse(
-                          tb_birth[,24] == 'B',
-                          '3d',
-                          ifelse(
-                            tb_birth[,23] == 'B',
-                            '3e',
-                            ifelse(
-                              tb_birth[,22] == 'B',
-                              '3f',
-                              ifelse(
-                                !is.na(avg_tb_lst[,7]) & avg_tb_lst[,7] !="",
-                                '4',
-                                '5'                    #if census n/a, use rb_date1
-              
-    )))))))))))))))
 
 ```
 
@@ -605,9 +513,6 @@ frequency(unique(tb$r_stat01))
 
 #########  Location info
 
-state = tb$
-
-
 
 ```
 
@@ -639,4 +544,7 @@ c(KS_stat, mc_crit)
 
 all$i_whn
 ```
+
+
+
 
