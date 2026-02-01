@@ -292,6 +292,8 @@ Combining everything in SQL for NON-TB cohort:
 
 ```{sql connection=con, output.var="ntb"}
 
+SET memory_limit = "12GB";
+
 SELECT *
 FROM (
   select *
@@ -443,7 +445,9 @@ Death Year
 
 ```{r death}
 
-all_death <- as.character(all) |>
+
+
+all_death <- all |>
   select(recidnum,
     rd_date, rd_dtqc, dthdt01, dthdt02, dthdt03, dthdt04, dthdt05, dthdt06,
     dthdt07, dthdt08, dthdt09, dthdt10, dthdt11, dthdt12, dthdt13, dthdt14,
@@ -452,97 +456,37 @@ all_death <- as.character(all) |>
 as.data.frame()
 
 
-all_death <- remove_blank(all_death) |>
+all_death = remove_blank(all_death) |>
+  mutate(across(everything(), as.character)) |>
   mutate(
     DYR = case_when(
       !is.na(rd_date) ~ substr(rd_date, 1,4),
       TRUE ~ NA)
   )
 
+
+all$DYR <- all_death$DYR
+all$BYR <- all_birth$BYR
+
 ```
+
+```{r write, include=F}
+
+tb <- all[1:2569,]
+ntb <- all[2569:39338,]
+
+write_csv(tb, "../data/in-progress/tb_v6.csv")
+write_csv(ntb, "../data/in-progress/ntb_v5.csv")
+
+```
+
 
 ## Here are some summary statistics and preliminary analyses for this sample:
 
 ```{r}
 
-tb %>%
-  select(where(~ all(is.na(.) | . == ""))) %>%
-  names()
 
 
-library(readr)
-write_csv(tb, "tb_v2.csv")
-write_csv(ntb, "ntb_v1.csv")
-
-
-######### DOD/DOB/Age at Death Comparison
-
-
-YEAR_cl <- as.numeric(substr(ntb_birth$YEAR, 1, 4))
-YEAR_cl <- YEAR_cl[which(YEAR_cl>1700 & YEAR_cl<1865)]
-
-
-tb_YEAR_cl <- as.numeric(substr(tb_birth$YEAR, 1, 4))
-tb_YEAR_cl <- tb_YEAR_cl[which(tb_YEAR_cl>1700 & tb_YEAR_cl<1865 & !is.na(tb_YEAR_cl))]
-
-hist(YEAR_cl, breaks=50)
-hist(tb_YEAR_cl, breaks=50)
-mean(YEAR_cl[which(!is.na(YEAR_cl))])
-summary(YEAR_cl)
-
-
-######### Measurements of TB group
-
-avg(tb$)
-
-hist(tb$a_hgtin[which(tb$a_hgtin < 12 | tb$a_hgtft != 6)])
-
-hist(tb$a_weight)
-
-
-######### Percentage of afflicted individuals that ended up dying to TB
-
-## tb death df
-tb_die <- tb[which(grepl("TUBER", tb$rd_cause)==T | grepl("TUBER", tb$rd_ccaus)==T),]
-
-## FINAL PERCENTAGE
-count(tb_die)/count(tb) # 0.4473993
-
-frequency(unique(tb$r_stat01))
-
-
-#########  Location info
-
-
-```
-
-```{r}
-
-########## Montecarlo Simulation (Lillefors) for weight
-
-n = length(tb$a_weight)
-
-set.seed(7143)
-N_mc = 15000
-alpha = 0.05
-mcstat = c()
-theoretical_cdf = (1:n)/(n+1)
-
-for (i in 1:N_mc){
-  mcs = rnorm(n, 0, 1)
-  mc_Psix = pnorm(sort(mcs), 0, 1)
-  mc_Dx = abs(mc_Psix - theoretical_cdf)
-  mcstat = c(mcstat, max(mc_Dx))
-}
-
-mc_crit = quantile(mcstat, 1-alpha)
-hist(mcstat, breaks = 50)
-
-c(KS_stat, mc_crit)
-
-#########
-
-all$i_whn
 ```
 
 
