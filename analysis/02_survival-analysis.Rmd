@@ -13,8 +13,8 @@ library(survival)
 library(data.table)
 
 
-ntb <- fread("../data/in-progress/ntb_v4.csv")
-tb <- fread("../data/in-progress/tb_v5.csv")
+ntb <- fread("../data/in-progress/ntb_v5.csv")
+tb <- fread("../data/in-progress/tb_v6.csv")
 
 # Important functions
 
@@ -200,7 +200,11 @@ tb_min_dates$recidnum <- as.character(tb_min_dates$recidnum)
 
 first_tb_full <- tb |>
   left_join(tb_min_dates, by = "recidnum") |>
-  select(recidnum, tb_first_date)
+  select(recidnum,
+         BYR,
+         DYR,
+         tb_first_date)
+
 ```
 
 Now let's get a data frame with relevant date by recruit
@@ -208,21 +212,11 @@ Now let's get a data frame with relevant date by recruit
 ```{r}
 
 
-DYR <- all_death$DYR
-all_birth <- all_birth |>
-  select(
-    recidnum, BYR
-  ) |>
-  mutate(
-    DYR = DYR
-  )
-
 
 first_tb_full <- first_tb_full |>
   mutate(recidnum = as.character(recidnum))
 
-first_tb_full <- all_birth |>
-  left_join(first_tb_full, by = "recidnum") |>
+first_tb_full <- first_tb_full |>
   mutate(
     tb_first_date = substr(tb_first_date, 1, 4)
   )
@@ -233,6 +227,8 @@ first_tb_full <- remove_blank(first_tb_full) |>
     DYR = as.numeric(DYR),
     tb_first_date = as.numeric(tb_first_date)
   )
+
+glimpse(first_tb_full)
 
 
 ```
@@ -311,6 +307,11 @@ hist(surv_tb$tb_first_date)
 
 ```
 
-KM Plot
+To be able to compare TB to non-TB soldiers, we need to evaluate survival from a common event. Let's do first enlistment, which will control (slightly) for age.
 
-\`\`\`{r setup, include=FALSE}
+```{r lst_km}
+
+
+
+
+```
