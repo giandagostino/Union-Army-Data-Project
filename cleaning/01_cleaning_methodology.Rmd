@@ -470,6 +470,12 @@ all$BYR <- all_birth$BYR
 
 ```
 
+
+
+
+
+
+
 ```{r write, include=F}
 
 tb <- all[1:2569,]
@@ -479,6 +485,7 @@ write_csv(tb, "../data/in-progress/tb_v6.csv")
 write_csv(ntb, "../data/in-progress/ntb_v5.csv")
 
 ```
+
 
 
 ## Here are some summary statistics and preliminary analyses for this sample:

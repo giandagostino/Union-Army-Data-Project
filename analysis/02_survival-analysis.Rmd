@@ -312,6 +312,43 @@ To be able to compare TB to non-TB soldiers, we need to evaluate survival from a
 ```{r lst_km}
 
 
+lst <- all |>
+  select(recidnum,
+    lstdt1_1, mildfdt1, lstdt1_2, mildfdt2,
+    lstdt1_3, mildfdt3, lstdt2_1, mildfdt4,
+    lstdt2_2, mildfdt5, lstdt2_3, mildfdt6,
+    TB_yn
+  )
+
+lst <- as.data.frame(t(apply(remove_blank(lst), 1, cln_dupl)))
+
+
+
+# Turn end "--" into 0 and delete every cell that still has "--" to get rid of dates that are too arbitrary (month or year is unknown)
+
+lst <- lst |>
+  select(recidnum,
+         lstdt1_1, mildfdt1, lstdt1_2, mildfdt2,
+         lstdt1_3, mildfdt3, lstdt2_1, mildfdt4,
+         lstdt2_2, mildfdt5, lstdt2_3, mildfdt6,
+         TB_yn
+  ) |>
+  mutate(
+    across(-c(recidnum, TB_yn), ~gsub("--$", "00", .)),
+    across(-c(recidnum, TB_yn), ~if_else(grepl("--", .x), NA, .x)),
+    across(-c(recidnum, TB_yn), ~ifelse(!is.na(.x), substr(.x, 1, 4), .x))
+  ) |>
+  filter(if_any(-c(recidnum, TB_yn), ~ !is.na(.x))) |>
+  rowwise() |>
+  mutate(
+    first_lst = min(c_across(-c(recidnum,TB_yn)), na.rm = TRUE)
+  ) |>
+  ungroup()
+
+
+
+
+
 
 
 ```
