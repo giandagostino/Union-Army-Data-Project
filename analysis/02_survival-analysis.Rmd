@@ -10,11 +10,13 @@ date: "2026-01-30"
 
 library(tidyverse)
 library(survival)
+library(survminer)
 library(data.table)
 
 
 ntb <- fread("../data/in-progress/ntb_v5.csv")
 tb <- fread("../data/in-progress/tb_v6.csv")
+all <- rbind(tb, ntb)
 
 # Important functions
 
@@ -209,7 +211,7 @@ first_tb_full <- tb |>
 
 Now let's get a data frame with relevant date by recruit
 
-```{r}
+```{r df_tb}
 
 
 
@@ -235,7 +237,7 @@ glimpse(first_tb_full)
 
 And plot!
 
-```{r}
+```{r km_tb}
 
 library(survival)
 library(dplyr)
@@ -317,7 +319,7 @@ lst <- all |>
     lstdt1_1, mildfdt1, lstdt1_2, mildfdt2,
     lstdt1_3, mildfdt3, lstdt2_1, mildfdt4,
     lstdt2_2, mildfdt5, lstdt2_3, mildfdt6,
-    TB_yn
+    TB_yn, DYR
   )
 
 lst <- as.data.frame(t(apply(remove_blank(lst), 1, cln_dupl)))
@@ -327,12 +329,6 @@ lst <- as.data.frame(t(apply(remove_blank(lst), 1, cln_dupl)))
 # Turn end "--" into 0 and delete every cell that still has "--" to get rid of dates that are too arbitrary (month or year is unknown)
 
 lst <- lst |>
-  select(recidnum,
-         lstdt1_1, mildfdt1, lstdt1_2, mildfdt2,
-         lstdt1_3, mildfdt3, lstdt2_1, mildfdt4,
-         lstdt2_2, mildfdt5, lstdt2_3, mildfdt6,
-         TB_yn
-  ) |>
   mutate(
     across(-c(recidnum, TB_yn), ~gsub("--$", "00", .)),
     across(-c(recidnum, TB_yn), ~if_else(grepl("--", .x), NA, .x)),
@@ -346,8 +342,40 @@ lst <- lst |>
   ungroup()
 
 
+# And new lets see the Kaplan-Meier curve for TB versus non-TB
+
+compare_df <- lst |>
+  mutate(
+    first_lst = as.numeric(first_lst),
+    DYR = as.numeric(DYR),
+    surv_time = DYR - first_lst,
+    event = 1
+  ) |>
+  filter(surv_time >= 0) 
+
+compare_df$TB_yn <- factor(compare_df$TB_yn, 
+                           levels = c(0, 1), 
+                           labels = c("Non-TB", "TB"))
 
 
+km_comparison <- survfit(Surv(surv_time, event) ~ TB_yn, data = compare_df)
+
+print(km_comparison)
+
+p <- ggsurvplot(
+  km_comparison, 
+  data = compare_df,
+  conf.int = TRUE,
+  risk.table = FALSE,
+  pval = TRUE,
+  palette = c("#E7B800", "#2E9FDF"),
+  xlab = "Years after First Enlistment",
+  ggtheme = theme_minimal()
+)
+
+p$plot <- p$plot + labs(title = "Survival: TB vs. Non-TB Cohorts")
+
+p
 
 
 
