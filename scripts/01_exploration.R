@@ -980,6 +980,44 @@ repeat_type_counts <- rlst_hosp |>
   count(event_category, name = "repeat_count")
 
 
+################################################################################
+
+bplace <- all |>
+  select(
+   gen_birthplace_icpsr1,
+   gen_birthplace_icpsr2,
+   gen_rb_cnty_icpsr1,
+   gen_rb_cnty_icpsr2
+  ) |> 
+  mutate(across(everything(), as.character)) |>
+  mutate(gen_birthplace_icpsr1 = na_if(gen_birthplace_icpsr1, "9999999"),
+         gen_birthplace_icpsr2 = na_if(gen_birthplace_icpsr2, "9999999"),
+         gen_rb_cnty_icpsr1 = na_if(gen_rb_cnty_icpsr1, "9999"),
+         gen_rb_cnty_icpsr2 = na_if(gen_rb_cnty_icpsr2, "9999")
+         )
+  
+
+# Invalid ICPSR codes
+
+test <- bplace |>
+  filter(
+    gen_birthplace_icpsr1 == "9999"
+  )
+
+table(bplace$gen_rb_cnty_icpsr1)
+
+bplace |> count(gen_birthplace_icpsr2, sort = TRUE) |>
+  head(50)
+bplace |> count(gen_rb_cnty_icpsr1, sort = TRUE)
+
+
+
+
+
+
+
+
+
 
 
 
