@@ -12,7 +12,7 @@ library(tidyverse)
 library(survival)
 library(survminer)
 library(data.table)
-
+library(MatchIt)
 
 
 ntb <- fread("../data/in-progress/ntb_v5.csv")
@@ -395,4 +395,34 @@ As you can see, the tb vs. non-tb survival curves are significantly different (P
 
 The log rank test requires that: - the censoring patterns are the same - the hazard functions for the two groups are proportional
 
-We want to see if their is any causal relationship between the diagnosis of tb.
+We want to see if their is any causal relationship between the diagnosis of tb. To do this, we will match TB individuals to non-TB individuals with as many of the same characteristics as possible. The characteristics we will try to match are:
+
+-   Birth Year
+
+-   US State of birth
+
+-   US State of enlistment
+
+-   Age at enlistment
+
+-   War injuries
+
+-   First regiment
+
+-   Height at enlistment
+
+-   Weight at enlistment
+
+```{r matching}
+
+# Characteristics
+
+match_full <- all |>
+  select(
+    BYR, initstat, 
+  )
+
+match_full <- match_full
+
+
+```
