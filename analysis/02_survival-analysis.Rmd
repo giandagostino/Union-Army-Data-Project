@@ -14,6 +14,7 @@ library(survminer)
 library(data.table)
 
 
+
 ntb <- fread("../data/in-progress/ntb_v5.csv")
 tb <- fread("../data/in-progress/tb_v6.csv")
 all <- rbind(tb, ntb)
@@ -30,6 +31,15 @@ cln_dupl <- function(x){
   x[duplicated(x)] <- NA
   return(x)
 }
+```
+
+## Summary Statistics
+
+```{r}
+
+
+
+
 ```
 
 Now let's try to fit a Kaplan-Meier curve to the people with tuberculosis mentioned in their record.
@@ -380,3 +390,9 @@ p
 
 
 ```
+
+As you can see, the tb vs. non-tb survival curves are significantly different (P \< 0.0001 for log rank test).
+
+The log rank test requires that: - the censoring patterns are the same - the hazard functions for the two groups are proportional
+
+We want to see if their is any causal relationship between the diagnosis of tb.
