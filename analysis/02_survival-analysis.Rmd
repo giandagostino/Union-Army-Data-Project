@@ -13,7 +13,7 @@ library(survival)
 library(survminer)
 library(data.table)
 library(MatchIt)
-
+library(knitr)
 
 ntb <- fread("../data/in-progress/ntb_v5.csv")
 tb <- fread("../data/in-progress/tb_v6.csv")
@@ -48,9 +48,9 @@ Start by finding the first date that is associated with a mention of TB
 
 ```{r}
 
-tb$recidnum <- as.character(tb$recidnum)
+all$recidnum <- as.character(all$recidnum)
 
-tb_date_date <- remove_blank(tb) |>
+tb_date_date <- remove_blank(all) |>
   select(recidnum,
     #a_clm01_date = appdt01,
     #a_clm02_date = appdt02,
@@ -111,7 +111,7 @@ unftc2_1_date = dchdt2_1
   mutate(across(-recidnum, as.character))
 
 
-tb_date_event <- remove_blank(tb) |>
+tb_date_event <- remove_blank(all) |>
   select(recidnum,
 dschrn01,
 dschrn02,
@@ -180,7 +180,7 @@ date_long <- tb_date_date |>
   mutate(slot = str_remove(slot, "_date$")) 
 
 tb_long <- event_long |>
-  inner_join(date_long, by = c("recidnum", "slot"))
+  inner_join(date_long, by = c("recidnum", "slot"), relationship = "many-to-many")
 
 tb_dates <- tb_long |>
   filter(
@@ -210,12 +210,15 @@ tb_min_dates <- tb_dates |>
 
 tb_min_dates$recidnum <- as.character(tb_min_dates$recidnum)
 
-first_tb_full <- tb |>
+first_tb_full <- all |>
   left_join(tb_min_dates, by = "recidnum") |>
   select(recidnum,
          BYR,
          DYR,
-         tb_first_date)
+         tb_first_date,
+         TB_yn,
+         initstat
+         )
 
 ```
 
@@ -234,13 +237,20 @@ first_tb_full <- first_tb_full |>
   )
 
 first_tb_full <- remove_blank(first_tb_full) |>
-  drop_na() |>
   mutate(
     DYR = as.numeric(DYR),
     tb_first_date = as.numeric(tb_first_date)
   )
 
 glimpse(first_tb_full)
+
+# Prepare dataset for survival curve
+surv_tb <- first_tb_full |>
+  mutate(
+    age_tb = tb_first_date - BYR,
+    age_death = DYR - BYR
+  )
+
 
 
 ```
@@ -252,13 +262,6 @@ And plot!
 library(survival)
 library(dplyr)
 
-
-# Prepare dataset
-surv_tb <- first_tb_full |>
-  mutate(
-    age_tb = tb_first_date - BYR,
-    age_death = DYR - BYR
-  )
 
 # Right-censored survival object (referencing the columns inside the dataframe)
 surv_obj <- Surv(
@@ -285,17 +288,17 @@ print(km_fit)
 
 
 # Calculate time since TB mention and censoring
-surv_tb <- first_tb_full %>%
-  filter(!is.na(tb_first_date)) %>%  # only people who had TB
+surv_tb_2 <- first_tb_full |>
+  filter(!is.na(tb_first_date)) |>  # only people who had TB
   mutate(
     start_age = tb_first_date - BYR,    # age at first TB
     end_age = DYR - BYR,                # age at death
     time_since_tb = end_age - start_age, # duration after TB
     event = 1                           # everyone eventually dies, so event = 1
-  ) %>%
+  ) |>
   filter(time_since_tb >= 0)            # remove negative intervals if any
 
-surv_obj <- Surv(time = surv_tb$time_since_tb, event = surv_tb$event)
+surv_obj <- Surv(time = surv_tb_2$time_since_tb, event = surv_tb_2$event)
 
 km_fit <- survfit(surv_obj ~ 1)
 
@@ -361,7 +364,7 @@ compare_df <- lst |>
     surv_time = DYR - first_lst,
     event = 1
   ) |>
-  filter(surv_time >= 0) 
+  filter(surv_time >= 0) a
 
 compare_df$TB_yn <- factor(compare_df$TB_yn, 
                            levels = c(0, 1), 
@@ -411,18 +414,99 @@ We want to see if their is any causal relationship between the diagnosis of tb. 
 
 -   Height at enlistment
 
--   Weight at enlistment
+-   Weight at enlistment\
 
 ```{r matching}
 
 # Characteristics
 
-match_full <- all |>
-  select(
-    BYR, initstat, 
-  )
+# Dataframe for matching from the previous time_since_tb dataframe
 
-match_full <- match_full
+match_full <- surv_tb |>
+  select(
+    recidnum,
+    tb_first_date, age_tb, age_death,
+    BYR, DYR, initstat, TB_yn
+  ) |>
+  filter(
+    if_all(c(BYR), is.finite)
+  ) |>
+  mutate(
+    TB_yn = as.numeric(as.character(TB_yn))
+  ) |>
+  drop_na(initstat)
+
+
+match_full <- matchit(TB_yn ~ BYR + initstat,
+                      data = match_full,
+                      distance = "glm",
+                      link = "probit")
+
+matched_df <- match.data(match_full)
+
+# Add constant status for lack of censoring
+matched_df$status <- 1
+
+# Create index date for non-TB
+matched_df <- matched_df |>
+  group_by(subclass) |>
+  mutate(
+    index_date = max(tb_first_date, na.rm = T)
+  ) |>
+  ungroup() |>
+  mutate(
+    index_date = if_else(is.infinite(index_date), NA_real_, index_date)
+  ) |>
+  drop_na(index_date) |>
+  mutate(
+    survival_time = DYR - index_date
+  ) |>
+  drop_na(survival_time) |>
+  filter(survival_time >= 0)
+  
+# Final formatting of the matched data
+plot_df <- matched_df |>
+  mutate(
+    event = 1
+  ) |>
+  mutate(TB_yn = factor(TB_yn, 
+                        levels = c(0, 1), 
+                        labels = c("Non-TB", "TB")))
+
+# Fit km model
+km_matched <- survfit(Surv(survival_time, event) ~ TB_yn, data = plot_df)
+
+matched_p_final <- ggsurvplot(
+  km_matched, 
+  data = plot_df,
+  conf.int = TRUE,       
+  risk.table = FALSE,    
+  pval = TRUE,  
+  palette = c("#E7B800", "#2E9FDF"), 
+  xlab = "Years of Life Remaining after Index Date",
+  ggtheme = theme_minimal()
+)
+
+matched_p_final$plot <- matched_p_final$plot + 
+  labs(title = "Mortality: TB vs. Matched Controls")
+
+matched_p_final
+
+
+# And table for the median survival times
+
+medians <- surv_median(km_matched)
+
+median_table <- medians |>
+  mutate(
+    Group = gsub("TB_tn=", "", strata),
+    Median_Years = round(median, 2),
+    Lower_95_CI = round(lower, 1),
+    Upper_95_CI = round(upper, 1)
+  ) |>
+  select(Group, Median_Years, Lower_95_CI, Upper_95_CI)
+
+print(median_table)
 
 
 ```
