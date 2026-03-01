@@ -1014,26 +1014,6 @@ init <- all |>
   )
 
 
-###############################################################################
-
-# Matching
-
-match_full <- all |>
-  select(
-    recidnum, TB_yn, BYR, initstat
-  ) |>
-  drop_na() |>
-#  mutate(
-#    BYR = round(BYR, 5)
-#  )
-
-sum(is.na(match_full$BYR))
-sum(!is.finite(all$BYR))
-
-match_full <- matchit(TB_yn ~ BYR + initstat,
-                      data = all,
-                      distance = "probit")
-
 
 
 
