@@ -32,10 +32,21 @@ matched_df <- matched_df |>
   mutate(indexdate)
 
 
-
 match_df$survival_time <- as.numeric
 
-
-
-
 km_fit <- survfit(Surv())
+
+
+################################################################################
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1013,14 +1013,74 @@ init <- all |>
     initreg, initstat, initcomp, initdesc
   )
 
+# initreg and initstat usable
 
 
+###############################################################################
+
+# War injuries
+
+inj <- all |>
+  select(
+    illwnd01, illwnd02, illwnd03, illwnd04, illwnd05,
+    illwnd06, illwnd07, illwnd08, illwnd09, illwnd10,
+    illwnd11, illwnd12, illwnd13, illwnd14, illwnd15,
+    illwnd16, illwnd17, illwnd18, illwnd19, illwnd20
+  ) |>
+  mutate(
+    wnd_yn = if_else(
+      if_any(everything(), ~ .x == "W"),
+      1,
+      0
+    )
+  )
 
 
+###############################################################################
 
+# Checking subclasses for matching
 
+plot_df |>
+  filter(
+    subclass == 7
+  )
 
+plot_df |>
+  filter(
+    subclass == 8
+  )
 
+plot_df |>
+  filter(
+    subclass == 9
+  )
+
+plot_df |>
+  filter(
+    subclass == 19
+  )
+
+a <- plot_df |>
+  filter(
+    subclass == 20
+  )
+
+b <- plot_df |>
+  filter(
+    subclass == 24
+  )
+
+c <- plot_df |>
+  filter(
+    subclass == 25
+  )
+
+d <- plot_df |>
+  filter(
+    subclass == 34
+  )
+
+i <- bind_rows(a,b,c,d)
 
 
 
