@@ -15,8 +15,8 @@ library(data.table)
 library(MatchIt)
 library(knitr)
 
-ntb <- fread("../data/in-progress/ntb_v5.csv")
-tb <- fread("../data/in-progress/tb_v6.csv")
+ntb <- fread("../data/in-progress/ntb_v6.csv")
+tb <- fread("../data/in-progress/tb_v7.csv")
 all <- rbind(tb, ntb)
 
 # Important functions
@@ -217,7 +217,9 @@ first_tb_full <- all |>
          DYR,
          tb_first_date,
          TB_yn,
-         initstat
+         
+         # For later matching
+         initstat, initreg, gen_birthplace_icpsr1, wnd_yn
          )
 
 ```
@@ -402,21 +404,9 @@ We want to see if their is any causal relationship between the diagnosis of tb. 
 
 -   Birth Year
 
--   US State of birth
+-   US State of enlistment\
 
--   US State of enlistment
-
--   Age at enlistment
-
--   War injuries
-
--   First regiment
-
--   Height at enlistment
-
--   Weight at enlistment\
-
-```{r matching}
+```{r matching 1}
 
 # Characteristics
 
@@ -507,6 +497,126 @@ median_table <- medians |>
   select(Group, Median_Years, Lower_95_CI, Upper_95_CI)
 
 print(median_table)
+
+
+```
+
+Now, to add more characteristics to matching:
+
+-   Age at enlistment
+
+-   War injuries
+
+-   First regiment
+
+-   Height at enlistment
+
+-   Weight at enlistment
+
+-   Occupation
+
+```{r matching 2}
+
+
+match_full <- surv_tb |>
+  select(
+    recidnum,
+    tb_first_date, age_tb, age_death,
+    BYR, DYR, initstat, initreg, gen_birthplace_icpsr1, wnd_yn,
+    TB_yn
+  ) |>
+  filter(
+    if_all(c(BYR), is.finite)
+  ) |>
+  mutate(
+    TB_yn = as.numeric(as.character(TB_yn))
+  ) |>
+  drop_na(initstat, initreg, DYR, gen_birthplace_icpsr1)
+
+
+match_full <- matchit(TB_yn ~ BYR + initstat + initreg + wnd_yn,
+                      data = match_full,
+                      method = "nearest",
+                      distance = "glm",
+                      link = "probit",
+                      exact = ~initreg)
+
+
+summary(match_full)
+
+matched_df <- match.data(match_full)
+
+# Add constant status for lack of censoring
+matched_df$status <- 1
+
+# Create index date for non-TB
+matched_df <- matched_df |>
+  group_by(subclass) |>
+  mutate(
+    index_date = if_else(
+      any(!is.na(tb_first_date)), 
+      max(tb_first_date, na.rm = TRUE), 
+      NA_real_
+    )
+  ) |>
+  ungroup() |>
+  drop_na(index_date) |>
+  mutate(
+    survival_time = DYR - index_date
+  ) |>
+  drop_na(survival_time) |>
+  filter(survival_time >= 0)
+  
+# Final formatting of the matched data
+plot_df <- matched_df |>
+  mutate(
+    event = 1
+  ) |>
+  mutate(TB_yn = factor(TB_yn, 
+                        levels = c(0, 1), 
+                        labels = c("Non-TB", "TB")))
+
+# Fit km model
+km_matched <- survfit(Surv(survival_time, event) ~ TB_yn, data = plot_df)
+
+matched_p_final <- ggsurvplot(
+  km_matched, 
+  data = plot_df,
+  conf.int = TRUE,       
+  risk.table = FALSE,    
+  pval = TRUE,  
+  palette = c("#E7B800", "#2E9FDF"), 
+  xlab = "Years of Life Remaining after Index Date",
+  ggtheme = theme_minimal()
+)
+
+matched_p_final$plot <- matched_p_final$plot + 
+  labs(title = "Mortality: TB vs. Matched Controls")
+
+matched_p_final
+
+
+# And table for the median survival times
+
+medians <- surv_median(km_matched)
+
+median_table <- medians |>
+  mutate(
+    Group = gsub("TB_tn=", "", strata),
+    Median_Years = round(median, 2),
+    Lower_95_CI = round(lower, 1),
+    Upper_95_CI = round(upper, 1)
+  ) |>
+  select(Group, Median_Years, Lower_95_CI, Upper_95_CI)
+
+print(median_table)
+
+
+# Cox model
+
+cox_fit <- coxph(Surv(survival_time, event) ~ TB_yn, data = plot_df)
+
+summary(cox_fit)
 
 
 ```
