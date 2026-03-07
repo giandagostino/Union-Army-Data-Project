@@ -1,0 +1,62 @@
+---
+title: "03_matching"
+output: html_document
+date: "2026-03-07"
+---
+
+# Matching
+
+Based on the Kaplan-Meier curves made in the survival analysis markdown, we have decided to move forward with matching as a way of controlling for confounding variables. Throughout this markdown, the `survival` and `survminer` packages will be used.
+
+
+
+```{r setup, include=FALSE}
+
+library(tidyverse)
+library(survival)
+library(survminer)
+library(data.table)
+library(MatchIt)
+library(knitr)
+
+ntb <- fread("../data/in-progress/ntb_v6.csv")
+tb <- fread("../data/in-progress/tb_v7.csv")
+all <- rbind(tb, ntb)
+
+
+```
+
+Matching will be used in this study due to the nature of our data and our research question. As mentioned in '02_survival-analysis.Rmd,' we are using KM curves not to evaluate survival after treatment, but to compare survival rates between soldiers with tuberculosis versus without. Therefore, our first event cannot be first mention of TB for both cohorts, since the non-TB group won't have a diagnosis date. We will use an `index_date` after matching the TB-afflicted soldiers to a healthy soldier with the most common traits.
+
+
+## Matching Metholody
+
+In order to have robust matching results, we have decided to go variable-by-variable for characteristics to match by. The first one will be birth year, to control for age. We will try to match by exact year and also by nearest neighbor.
+
+```{r byr}
+
+
+```
+
+Next, age at first enlistment:
+
+```{r age_lst}
+
+```
+
+Then state of first enlistment:
+
+```{r initstat}
+
+```
+
+And finally, height at enlistment:
+
+```{r height}
+
+
+```
+
+
+
+

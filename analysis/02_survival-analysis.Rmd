@@ -1,7 +1,7 @@
 ---
 title: "02_survival-analysis"
 output: html_document
-date: "2026-01-30"
+date: "2026-03-07"
 ---
 
 ## Survival Analysis
@@ -219,7 +219,7 @@ first_tb_full <- all |>
          TB_yn,
          
          # For later matching
-         initstat, initreg, gen_birthplace_icpsr1, wnd_yn
+         initstat, initreg, gen_birthplace_icpsr1, wnd_yn, wgt
          )
 
 ```
@@ -253,6 +253,7 @@ surv_tb <- first_tb_full |>
     age_death = DYR - BYR
   )
 
+saveRDS(surv_tb, file = "data/in-progress/surv_tb.RDS")
 
 
 ```
@@ -434,6 +435,7 @@ match_full <- matchit(TB_yn ~ BYR + initstat,
 
 matched_df <- match.data(match_full)
 
+
 # Add constant status for lack of censoring
 matched_df$status <- 1
 
@@ -482,10 +484,12 @@ matched_p_final$plot <- matched_p_final$plot +
 
 matched_p_final
 
+summary(matched_p_final)
+
 
 # And table for the median survival times
 
-medians <- surv_median(km_matched)
+medians <- surv_median(matched_df)
 
 median_table <- medians |>
   mutate(
@@ -515,6 +519,8 @@ Now, to add more characteristics to matching:
 
 -   Occupation
 
+-   
+
 ```{r matching 2}
 
 
@@ -534,7 +540,7 @@ match_full <- surv_tb |>
   drop_na(initstat, initreg, DYR, gen_birthplace_icpsr1)
 
 
-match_full <- matchit(TB_yn ~ BYR + initstat + initreg + wnd_yn,
+match_full <- matchit(TB_yn ~ BYR + gen_birthplace_icpsr1 + initreg + wnd_yn,
                       data = match_full,
                       method = "nearest",
                       distance = "glm",
@@ -620,3 +626,5 @@ summary(cox_fit)
 
 
 ```
+
+After evaluating the quality of matching, we decided that this method was not working. We will be going variable
