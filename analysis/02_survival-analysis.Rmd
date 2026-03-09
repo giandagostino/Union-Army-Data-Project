@@ -627,4 +627,4 @@ summary(cox_fit)
 
 ```
 
-After evaluating the quality of matching, we decided that this method was not working. We will be going variable
+After evaluating the quality of matching, we decided that this method was not working. We will be going variable by variable in the new document, `03_matching.Rmd`

@@ -1083,7 +1083,7 @@ d <- plot_df |>
 i <- bind_rows(a,b,c,d)
 
 
-
+all$rh
 
 
 
