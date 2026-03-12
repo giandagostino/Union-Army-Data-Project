@@ -219,7 +219,7 @@ first_tb_full <- all |>
          TB_yn,
          
          # For later matching
-         initstat, initreg, gen_birthplace_icpsr1, wnd_yn, wgt
+         initstat, initreg, gen_birthplace_icpsr1, wnd_yn
          )
 
 ```
@@ -253,7 +253,7 @@ surv_tb <- first_tb_full |>
     age_death = DYR - BYR
   )
 
-saveRDS(surv_tb, file = "data/in-progress/surv_tb.RDS")
+saveRDS(surv_tb, file = "../data/in-progress/surv_tb.RDS")
 
 
 ```
@@ -265,67 +265,68 @@ And plot!
 library(survival)
 library(dplyr)
 
+# ---- MODEL 1: -----#
 
 # Right-censored survival object (referencing the columns inside the dataframe)
-surv_obj <- Surv(
-  time = ifelse(!is.na(surv_tb$age_tb), surv_tb$age_tb, surv_tb$age_death),
-  event = ifelse(!is.na(surv_tb$age_tb), 1, 0)
-)
+df_age <- surv_tb |>
+  mutate(
+    # Ensure columns are numeric; handle potential Date objects
+    age_val = as.numeric(ifelse(!is.na(age_tb), age_tb, age_death)),
+    event_val = ifelse(!is.na(age_tb), 1, 0)
+  ) |>
+  filter(!is.na(age_val))
 
 # Fit Kaplan-Meier
-km_fit <- survfit(surv_obj ~ 1)
+km_fit_age <- survfit(Surv(age_val, event_val) ~ 1, data = df_age)
 
 # Base R plot
-plot(km_fit,
+plot(km_fit_age,
+     conf.int = T,
      xlab = "Age (years)",
      ylab = "Survival with TB",
      main = "Kaplan-Meier Curve",
      col = "blue",
-     lwd = 2)
+     lwd = 2,
+     ylim = c(0,1))
 
-# Optional: add confidence intervals
-lines(km_fit$time, km_fit$upper, lty = 2, col = "red")
-lines(km_fit$time, km_fit$lower, lty = 2, col = "red")
+print(km_fit_age)
 
-print(km_fit)
 
+#-------- MODEL 2 ----------#
 
 # Calculate time since TB mention and censoring
 surv_tb_2 <- first_tb_full |>
-  filter(!is.na(tb_first_date)) |>  # only people who had TB
+  filter(!is.na(tb_first_date) & !is.na(DYR) & !is.na(BYR)) |>
   mutate(
-    start_age = tb_first_date - BYR,    # age at first TB
-    end_age = DYR - BYR,                # age at death
-    time_since_tb = end_age - start_age, # duration after TB
-    event = 1                           # everyone eventually dies, so event = 1
+    rt_age = as.numeric(tb_first_date) - as.numeric(BYR),
+    end_age   = as.numeric(DYR) - as.numeric(BYR),
+    time_since_tb = end_age - start_age,
+    event = 1 
   ) |>
-  filter(time_since_tb >= 0)            # remove negative intervals if any
+  # Filter out 0 or negative time (may cause plotting artifacts)
+  filter(time_since_tb > 0)
 
-surv_obj <- Surv(time = surv_tb_2$time_since_tb, event = surv_tb_2$event)
 
-km_fit <- survfit(surv_obj ~ 1)
+km_fit_post <- survfit(Surv(time_since_tb, event) ~ 1, data = surv_tb_2)
 
-plot(km_fit,
+plot(km_fit_post,
+     conf.int = TRUE,
+     col = "darkgreen",
+     lwd = 2,
      xlab = "Years since first TB mention",
-     ylab = "Survival probability",
+     ylab = "Survival Probability",
      main = "Kaplan-Meier Curve: Survival After TB",
-     col = "blue",
-     lwd = 2)
-
-# Optional: add confidence intervals
-lines(km_fit$time, km_fit$upper, lty = 2, col = "red")
-lines(km_fit$time, km_fit$lower, lty = 2, col = "red")
+     ylim = c(0, 1))
 
 print(km_fit)
 
-hist(surv_tb$time_since_tb)
-hist(surv_tb$end_age)
-hist(surv_tb$tb_first_date)
+hist(as.numeric(surv_tb_2$time_since_tb), main = "Dist: Time Since TB", xlab = "Years")
+hist(as.numeric(surv_tb_2$end_age), main = "Dist: Age at Death", xlab = "Age")
 
 
 ```
 
-To be able to compare TB to non-TB soldiers, we need to evaluate survival from a common event. Let's do first enlistment, which will control (slightly) for age.
+To be able to compare TB to non-TB soldiers, we need to evaluate survival from a common event. Let's do first enlistment, which will control for time spent in the army.
 
 ```{r lst_km}
 
