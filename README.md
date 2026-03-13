@@ -1,4 +1,4 @@
-** [View latest rendered survival analysis doc](https://htmlpreview.github.io/?https://github.com/giandagostino/Union-Army-Data-Project/blob/main/analysis/02_survival-analysis.html)
+** [View latest rendered survival analysis doc](https://htmlpreview.github.io/?https://github.com/giandagostino/Union-Army-Data-Project/blob/main/analysis/02_survival-analysis.html **
 
 # Union Army Dataset
 Analyzing Long-Term Effects of Tuberculosis (TB) Before Treatment Using Union Army Soldiers
