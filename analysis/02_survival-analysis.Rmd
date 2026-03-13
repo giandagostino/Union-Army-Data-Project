@@ -1,12 +1,16 @@
 ---
-title: "02_survival-analysis"
-output: html_document
-date: "2026-03-07"
+title: "Survival Analysis (in-progress)"
+author: "Giancarlo D'Agostino"
+output:
+  html_document:
+    code_folding: hide
+date: "2026-03-13"
 ---
 
 ## Survival Analysis
 
-```{r setup, echo=FALSE}
+```{r setup, echo=FALSE, warning=FALSE, message=FALSE}
+
 
 library(tidyverse)
 library(survival)
@@ -18,6 +22,13 @@ library(knitr)
 ntb <- fread("../data/in-progress/ntb_v6.csv")
 tb <- fread("../data/in-progress/tb_v7.csv")
 all <- rbind(tb, ntb)
+
+# Remove warnings from final doc
+opts_chunk$set(
+  warning = FALSE, 
+  message = FALSE
+)
+
 
 # Important functions
 
@@ -33,20 +44,11 @@ cln_dupl <- function(x){
 }
 ```
 
-## Summary Statistics
-
-```{r}
-
-
-
-
-```
-
 Now let's try to fit a Kaplan-Meier curve to the people with tuberculosis mentioned in their record.
 
 Start by finding the first date that is associated with a mention of TB
 
-```{r}
+```{r tb_date}
 
 all$recidnum <- as.character(all$recidnum)
 
@@ -218,7 +220,7 @@ first_tb_full <- all |>
          tb_first_date,
          TB_yn,
          
-         # For later matching
+         # For later matching **ADD HEIGHT
          initstat, initreg, gen_birthplace_icpsr1, wnd_yn
          )
 
@@ -244,8 +246,6 @@ first_tb_full <- remove_blank(first_tb_full) |>
     tb_first_date = as.numeric(tb_first_date)
   )
 
-glimpse(first_tb_full)
-
 # Prepare dataset for survival curve
 surv_tb <- first_tb_full |>
   mutate(
@@ -253,6 +253,7 @@ surv_tb <- first_tb_full |>
     age_death = DYR - BYR
   )
 
+# From the future: Saving for new matching document
 saveRDS(surv_tb, file = "../data/in-progress/surv_tb.RDS")
 
 
@@ -267,38 +268,41 @@ library(dplyr)
 
 # ---- MODEL 1: -----#
 
+tb_cohort <- surv_tb |>
+  filter(TB_yn  == "1")
+
 # Right-censored survival object (referencing the columns inside the dataframe)
-df_age <- surv_tb |>
+tb_cohort_clean <- tb_cohort |>
   mutate(
     # Ensure columns are numeric; handle potential Date objects
-    age_val = as.numeric(ifelse(!is.na(age_tb), age_tb, age_death)),
-    event_val = ifelse(!is.na(age_tb), 1, 0)
+    lifespan = as.numeric(age_death),
+    # Everyone is dead in this study
+    death_event = 1
   ) |>
-  filter(!is.na(age_val))
+  filter(!is.na(lifespan) & lifespan > 0 & lifespan < 120)
 
 # Fit Kaplan-Meier
-km_fit_age <- survfit(Surv(age_val, event_val) ~ 1, data = df_age)
+km_fit_lifespan <- survfit(Surv(lifespan, death_event) ~ 1, data = tb_cohort_clean)
 
 # Base R plot
-plot(km_fit_age,
+plot(km_fit_lifespan,
      conf.int = T,
-     xlab = "Age (years)",
-     ylab = "Survival with TB",
-     main = "Kaplan-Meier Curve",
+     xlab = "Age (Years from Birth)",
+     ylab = "Survival Rate",
+     main = "KM: Lifespan for TB Cohort",
      col = "blue",
-     lwd = 2,
-     ylim = c(0,1))
+     lwd = 2)
 
-print(km_fit_age)
+print(km_fit_lifespan)
 
 
 #-------- MODEL 2 ----------#
 
 # Calculate time since TB mention and censoring
 surv_tb_2 <- first_tb_full |>
-  filter(!is.na(tb_first_date) & !is.na(DYR) & !is.na(BYR)) |>
+  filter(!is.na(tb_first_date) & !is.na(DYR) & !is.na(BYR) & TB_yn == "1") |>
   mutate(
-    rt_age = as.numeric(tb_first_date) - as.numeric(BYR),
+    start_age = as.numeric(tb_first_date) - as.numeric(BYR),
     end_age   = as.numeric(DYR) - as.numeric(BYR),
     time_since_tb = end_age - start_age,
     event = 1 
@@ -315,10 +319,10 @@ plot(km_fit_post,
      lwd = 2,
      xlab = "Years since first TB mention",
      ylab = "Survival Probability",
-     main = "Kaplan-Meier Curve: Survival After TB",
+     main = "Kaplan-Meier Curve: Survival After TB Mention",
      ylim = c(0, 1))
 
-print(km_fit)
+print(km_fit_post)
 
 hist(as.numeric(surv_tb_2$time_since_tb), main = "Dist: Time Since TB", xlab = "Years")
 hist(as.numeric(surv_tb_2$end_age), main = "Dist: Age at Death", xlab = "Age")
@@ -368,7 +372,7 @@ compare_df <- lst |>
     surv_time = DYR - first_lst,
     event = 1
   ) |>
-  filter(surv_time >= 0) a
+  filter(surv_time >= 0)
 
 compare_df$TB_yn <- factor(compare_df$TB_yn, 
                            levels = c(0, 1), 
@@ -485,12 +489,11 @@ matched_p_final$plot <- matched_p_final$plot +
 
 matched_p_final
 
-summary(matched_p_final)
 
 
 # And table for the median survival times
 
-medians <- surv_median(matched_df)
+medians <- surv_median(km_matched)
 
 median_table <- medians |>
   mutate(
@@ -548,8 +551,6 @@ match_full <- matchit(TB_yn ~ BYR + gen_birthplace_icpsr1 + initreg + wnd_yn,
                       link = "probit",
                       exact = ~initreg)
 
-
-summary(match_full)
 
 matched_df <- match.data(match_full)
 
@@ -609,14 +610,20 @@ medians <- surv_median(km_matched)
 
 median_table <- medians |>
   mutate(
-    Group = gsub("TB_tn=", "", strata),
+    Group = gsub("TB_yn=", "", strata),
     Median_Years = round(median, 2),
     Lower_95_CI = round(lower, 1),
     Upper_95_CI = round(upper, 1)
   ) |>
   select(Group, Median_Years, Lower_95_CI, Upper_95_CI)
 
-print(median_table)
+# Print clean table
+kable(
+  median_table, 
+  caption = "Median Survival Times: TB vs. Matched Controls",
+  align = "c",
+  col.names = c("Cohort", "Median (Years)", "Lower 95% CI", "Upper 95% CI")
+)
 
 
 # Cox model
