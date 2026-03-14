@@ -1,7 +1,7 @@
 ---
 title: "03_matching"
 output: html_document
-date: "2026-03-07"
+date: "2026-03-13"
 ---
 
 # Matching
@@ -22,27 +22,145 @@ library(knitr)
 ntb <- fread("../data/in-progress/ntb_v6.csv")
 tb <- fread("../data/in-progress/tb_v7.csv")
 all <- rbind(tb, ntb)
+surv_tb <- read_rds("../data/in-progress/surv_tb.RDS")
 
+
+
+############# Important functions ##############3#
+
+remove_blank <- function(x){
+  x <- x |>
+    mutate(across(everything(), ~if_else(.x == "", NA, .x)))
+  return(x)
+}
+
+
+# Index function (for after matching iteration and before graphing/model evaluation)
+index <- function(x){
+  # Turn matchit into dataframe 
+  x <- match.data(x)
+  
+  # Constant status for lack of censoring
+  x$status <- 1
+  
+  # Indexing
+  x <- x |>
+  group_by(subclass) |>
+  mutate(
+    index_date = max(tb_first_date, na.rm = T)
+  ) |>
+  ungroup() |>
+  mutate(
+    index_date = if_else(is.infinite(index_date), NA_real_, index_date)
+  ) |>
+  drop_na(index_date) |>
+  mutate(
+    survival_time = DYR - index_date
+  ) |>
+  drop_na(survival_time) |>
+  filter(survival_time >= 0)
+  
+  x <- remove_blank(x)
+  
+  return(x)
+}
+
+
+# Function for manual checking (random sample of matches)
+check_random_pairs <- function(df, n_pairs = 5){
+  all_subclasses <- unique(df$subclass)
+  n_pull <- min(n_pairs, length(all_subclasses))
+  random_picks <- sample(all_subclasses, size = n_pull, replace = FALSE)
+  df <- df |>
+    filter(subclass %in% random_picks) |>
+    arrange(subclass)
+  
+  return(df)
+}
 
 ```
 
 Matching will be used in this study due to the nature of our data and our research question. As mentioned in '02_survival-analysis.Rmd,' we are using KM curves not to evaluate survival after treatment, but to compare survival rates between soldiers with tuberculosis versus without. Therefore, our first event cannot be first mention of TB for both cohorts, since the non-TB group won't have a diagnosis date. We will use an `index_date` after matching the TB-afflicted soldiers to a healthy soldier with the most common traits.
 
 
-## Matching Metholody
+## Matching Methodology
 
 In order to have robust matching results, we have decided to go variable-by-variable for characteristics to match by. The first one will be birth year, to control for age. We will try to match by exact year and also by nearest neighbor.
 
 ```{r byr}
 
-match1
+# Clean matching dataframe
+match_byr <- surv_tb |>
+  select(
+    recidnum,
+    tb_first_date, age_tb, age_death,
+    BYR, DYR, initstat, TB_yn
+  ) |>
+  filter(
+    if_all(c(BYR), is.finite)
+  ) |>
+  mutate(
+    TB_yn = as.numeric(as.character(TB_yn)),
+    BYR = as.numeric(as.character(BYR))
+  ) |>
+  drop_na(initstat, DYR, BYR) |>
+  filter(!(TB_yn == 1 & is.na(tb_first_date)))
+
+
+# Diagnostics before matching
+nrow(match_byr |> filter(TB_yn == 1))
+ggplot(match_byr, aes(x = BYR, fill = factor(TB_yn))) + 
+  geom_density(alpha = 0.5) +
+  labs(title = "Overlapping Distributions of BYR Between Cohorts")
+
+# Run model
+model_byr <- matchit(TB_yn ~ BYR,
+                      data = match_byr,
+                      distance = "glm",
+                      link = "probit",
+                      exact = ~BYR)
+
+
+# INDEX
+matched_df <- index(model_byr)
+
+check_random_pairs(matched_df, n_pairs = 5)
+
+
 
 
 ```
 
+As we can see, there are n=1283 in the TB-cohort after cleaning NA dates, but before doing the matching. We will try to stay as close as possible to this number when matching as possible. The distributions are almost completely overlapping so this matching should be straightforward.
+
+After matching, we have the same amount of pairs.
+
+```{r byr_caliper}
+
+# We will use adjust this based on the matching results
+byr_caliper <- 2
+
+model_byr_caliper <- matchit(TB_yn ~ BYR,
+                      data = match_byr,
+                      distance = "glm",
+                      link = "probit",
+                      caliper = byr_caliper)
+
+
+matched_df <- index(model_byr_caliper)
+check_random_pairs(matched_df, n_pairs = 5)
+
+summary(model_byr_caliper)
+
+```
+
+### Age at First Enlistment
+
 Next, age at first enlistment:
 
 ```{r age_lst}
+
+
 
 ```
 
