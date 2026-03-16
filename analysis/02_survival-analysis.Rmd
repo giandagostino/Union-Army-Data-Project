@@ -4,7 +4,7 @@ author: "Giancarlo D'Agostino"
 output:
   html_document:
     code_folding: hide
-date: "2026-03-13"
+date: "2026-03-16"
 ---
 
 ## Survival Analysis
@@ -340,11 +340,10 @@ lst <- all |>
     lstdt1_1, mildfdt1, lstdt1_2, mildfdt2,
     lstdt1_3, mildfdt3, lstdt2_1, mildfdt4,
     lstdt2_2, mildfdt5, lstdt2_3, mildfdt6,
-    TB_yn, DYR
+    TB_yn, DYR, BYR
   )
 
 lst <- as.data.frame(t(apply(remove_blank(lst), 1, cln_dupl)))
-
 
 
 # Turn end "--" into 0 and delete every cell that still has "--" to get rid of dates that are too arbitrary (month or year is unknown)
@@ -358,7 +357,7 @@ lst <- lst |>
   filter(if_any(-c(recidnum, TB_yn), ~ !is.na(.x))) |>
   rowwise() |>
   mutate(
-    first_lst = min(c_across(-c(recidnum,TB_yn)), na.rm = TRUE)
+    first_lst = min(c_across(-c(recidnum,TB_yn, BYR)), na.rm = TRUE)
   ) |>
   ungroup()
 
@@ -370,9 +369,14 @@ compare_df <- lst |>
     first_lst = as.numeric(first_lst),
     DYR = as.numeric(DYR),
     surv_time = DYR - first_lst,
+    age_lst = as.numeric(first_lst) - as.numeric(BYR),
     event = 1
   ) |>
   filter(surv_time >= 0)
+
+# From the Future: for 03_matching.Rmd
+saveRDS(compare_df, "../data/in-progress/lst_df.RDS")
+
 
 compare_df$TB_yn <- factor(compare_df$TB_yn, 
                            levels = c(0, 1), 
@@ -601,8 +605,7 @@ matched_p_final <- ggsurvplot(
 matched_p_final$plot <- matched_p_final$plot + 
   labs(title = "Mortality: TB vs. Matched Controls")
 
-matched_p_final
-
+d
 
 # And table for the median survival times
 

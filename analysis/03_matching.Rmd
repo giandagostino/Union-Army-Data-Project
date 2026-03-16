@@ -23,7 +23,7 @@ ntb <- fread("../data/in-progress/ntb_v6.csv")
 tb <- fread("../data/in-progress/tb_v7.csv")
 all <- rbind(tb, ntb)
 surv_tb <- read_rds("../data/in-progress/surv_tb.RDS")
-
+lst_df <- read_rds("../data/in-progress/lst_df.RDS")
 
 
 ############# Important functions ##############3#
@@ -160,6 +160,30 @@ Next, age at first enlistment:
 
 ```{r age_lst}
 
+match_lst <- cbind(match_byr, "first_lst" = lst_df$first_lst, "age_lst" = lst_df$age_lst)
+match_lst <- remove_blank(match_lst) |>
+  drop_na(age_lst)
+
+
+# lst diagnostics
+nrow(match_byr |> filter(TB_yn == 1))
+ggplot(match_lst, aes(x = age_lst, fill = factor(TB_yn))) + 
+  geom_density(alpha = 0.5) +
+  labs(title = "Overlapping Distributions of Age at First Enlistment Between Cohorts")
+
+
+# Run matching algorithm
+model_lst <- matchit(TB_yn ~ BYR,
+                      data = match_lst,
+                      distance = "glm",
+                      link = "probit",
+                      exact = ~ BYR + age_lst)
+
+# INDEX
+matched_df <- index(model_lst)
+
+check_random_pairs(matched_df, n_pairs = 5)
+summary(model_lst)
 
 
 ```
