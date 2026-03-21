@@ -18,6 +18,7 @@ library(survminer)
 library(data.table)
 library(MatchIt)
 library(knitr)
+library(rlemon)
 
 ntb <- fread("../data/in-progress/ntb_v6.csv")
 tb <- fread("../data/in-progress/tb_v7.csv")
@@ -121,12 +122,13 @@ model_byr <- matchit(TB_yn ~ BYR,
                       exact = ~BYR)
 
 
+
 # INDEX
 matched_df <- index(model_byr)
 
 check_random_pairs(matched_df, n_pairs = 5)
 
-
+summary((model_byr))
 
 
 ```
@@ -135,7 +137,66 @@ As we can see, there are n=1283 in the TB-cohort after cleaning NA dates, but be
 
 After matching, we have the same amount of pairs.
 
-```{r byr_caliper}
+To minimize the number of people being thrown out with a 1:1 matching, we want to see whether a larger control group in the matching ratio is possible. This graph finds the sweet spot:
+
+```{r byr_ratio}
+
+# Define caliper
+byr_caliper <- 1
+
+# Define the maximum ratio
+max_ratio <- 20
+ratios_to_test <- 1:max_ratio
+
+# Create an empty vector to store results
+standardized_counts <- numeric(length(ratios_to_test))
+
+# loop for each ratio
+for (k in ratios_to_test) {
+
+  m.out <- matchit(TB_yn ~ BYR, 
+                   data = match_byr, 
+                   method = "nearest", 
+                   distance = "mahalanobis",
+                   ratio = k,
+                   caliper = c(BYR = 1),
+                   std.caliper = FALSE)
+  
+  # Extract the number of matched control units
+  total_matched_controls <- summary(m.out)$nn["Matched", "Control"]
+  
+  # Standardize the count
+  standardized_counts[k] <- total_matched_controls / k
+}
+
+# Clean dataframe for
+plot_data <- data.frame(
+  Ratio = ratios_to_test,
+  Standardized_Controls = standardized_counts
+)
+
+# Plot results
+ggplot(data = plot_data, aes(x = Ratio, y = Standardized_Controls)) +
+  geom_line(color = "#007acc", linewidth = 1.2) +
+  geom_point(color = "#007acc", size = 4) +
+  theme_minimal() +
+  scale_x_continuous(breaks = ratios_to_test) +
+  labs(
+    title = "Standardized Matched Controls vs. Matching Ratio",
+    subtitle = "Visualizing the drop-off of valid controls due to caliper limits",
+    x = "Matching Ratio (1:k)",
+    y = "Standardized Matched Controls (Total / k)"
+  ) +
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    axis.title = element_text(face = "bold")
+  )
+
+```
+
+
+
+```{r byr_final}
 
 # We will use adjust this based on the matching results
 byr_caliper <- 2
@@ -160,24 +221,26 @@ Next, age at first enlistment:
 
 ```{r age_lst}
 
+
 match_lst <- cbind(match_byr, "first_lst" = lst_df$first_lst, "age_lst" = lst_df$age_lst)
 match_lst <- remove_blank(match_lst) |>
-  drop_na(age_lst)
+  drop_na(age_lst, initstat)
 
 
 # lst diagnostics
-nrow(match_byr |> filter(TB_yn == 1))
+nrow(match_lst |> filter(TB_yn == 1))
 ggplot(match_lst, aes(x = age_lst, fill = factor(TB_yn))) + 
   geom_density(alpha = 0.5) +
   labs(title = "Overlapping Distributions of Age at First Enlistment Between Cohorts")
 
 
 # Run matching algorithm
-model_lst <- matchit(TB_yn ~ BYR,
+model_lst <- matchit(TB_yn ~ BYR + age_lst,
                       data = match_lst,
                       distance = "glm",
                       link = "probit",
-                      exact = ~ BYR + age_lst)
+                     caliper = c(age_lst = 2, BYR = 2),
+                     ratio = 5)
 
 # INDEX
 matched_df <- index(model_lst)
@@ -188,19 +251,20 @@ summary(model_lst)
 
 ```
 
-Then state of first enlistment:
-
-```{r initstat}
-
-```
-
 And finally, height at enlistment:
 
 ```{r height}
 
 
+
 ```
 
+
+Then state of first enlistment:
+
+```{r initstat}
+
+```
 
 
 

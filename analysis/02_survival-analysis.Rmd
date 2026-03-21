@@ -556,6 +556,7 @@ match_full <- matchit(TB_yn ~ BYR + gen_birthplace_icpsr1 + initreg + wnd_yn,
                       exact = ~initreg)
 
 
+
 matched_df <- match.data(match_full)
 
 # Add constant status for lack of censoring
