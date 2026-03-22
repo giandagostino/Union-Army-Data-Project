@@ -1,7 +1,10 @@
 ---
-title: "03_matching"
-output: html_document
-date: "2026-03-13"
+title: "Survival Analysis (in-progress)"
+author: "Giancarlo D'Agostino"
+output:
+  html_document:
+    code_folding: hide
+date: "2026-03-21"
 ---
 
 # Matching
@@ -19,6 +22,7 @@ library(data.table)
 library(MatchIt)
 library(knitr)
 library(rlemon)
+library(scales)
 
 ntb <- fread("../data/in-progress/ntb_v6.csv")
 tb <- fread("../data/in-progress/tb_v7.csv")
@@ -95,7 +99,7 @@ match_byr <- surv_tb |>
   select(
     recidnum,
     tb_first_date, age_tb, age_death,
-    BYR, DYR, initstat, TB_yn
+    BYR, DYR, initstat, TB_yn, wnd_yn, lst1_hgt
   ) |>
   filter(
     if_all(c(BYR), is.finite)
@@ -224,7 +228,7 @@ Next, age at first enlistment:
 
 match_lst <- cbind(match_byr, "first_lst" = lst_df$first_lst, "age_lst" = lst_df$age_lst)
 match_lst <- remove_blank(match_lst) |>
-  drop_na(age_lst, initstat)
+  drop_na(age_lst)
 
 
 # lst diagnostics
@@ -248,13 +252,39 @@ matched_df <- index(model_lst)
 check_random_pairs(matched_df, n_pairs = 5)
 summary(model_lst)
 
-
+all$a_hgtft
 ```
 
 And finally, height at enlistment:
 
 ```{r height}
 
+match_hgt <- remove_blank(match_lst) |>
+  drop_na(lst1_hgt)
+
+nrow(match_hgt |> filter(TB_yn == 1))
+ggplot(match_hgt, aes(x = lst1_hgt, fill = factor(TB_yn))) + 
+  geom_density(alpha = 0.5) +
+  labs(title = "Overlapping Distributions of Height at First Enlistment Between Cohorts")
+
+
+# Run matching algorithm
+model_hgt <- matchit(TB_yn ~ BYR + age_lst + lst1_hgt,
+                      data = match_hgt,
+                      distance = "glm",
+                      link = "probit",
+                     caliper = c(age_lst = 1, BYR = 1),
+                     ratio = 8
+                    # exact = ~BYR + age_lst + lst1_hgt)
+)
+# INDEX
+matched_df <- index(model_hgt)
+
+check_random_pairs(matched_df, n_pairs = 5)
+summary(model_hgt)
+
+check <- as.data.frame(table(matched_df$subclass))
+hist(check$Freq)
 
 
 ```
@@ -263,6 +293,46 @@ And finally, height at enlistment:
 Then state of first enlistment:
 
 ```{r initstat}
+
+match_state <- match_hgt
+  
+
+ggplot(match_state, aes(x = initstat, fill = factor(TB_yn))) + 
+  geom_bar(position = "fill", color = "white", linewidth = 0.2) + 
+  # Convert the y-axis
+  scale_y_continuous(labels = percent_format()) + 
+  scale_fill_manual(
+    values = c("0" = "#4E79A7", "1" = "#E15759"), 
+    labels = c("0" = "Non-TB", "1" = "TB")
+  ) +
+  labs(
+    title = "Proportion of TB vs. Non-TB Recruits by Initial State",
+    x = "Initial State",
+    y = "Percentage within State",
+    fill = "Cohort"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+
+
+# Run matching algorithm
+model_state <- matchit(TB_yn ~ BYR + age_lst + lst1_hgt + initstat,
+                      data = match_hgt,
+                      distance = "glm",
+                      link = "probit",
+                      caliper = c(age_lst = 1, BYR = 1, lst1_hgt = 1),
+                      ratio = 8,
+                      exact = ~initstat)
+
+# INDEX
+matched_df <- index(model_state)
+
+check_random_pairs(matched_df, n_pairs = 20)
+summary(model_state)
+
+check <- as.data.frame(table(matched_df$subclass))
+hist(check$Freq)
+
 
 ```
 

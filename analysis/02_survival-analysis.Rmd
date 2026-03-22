@@ -221,7 +221,8 @@ first_tb_full <- all |>
          TB_yn,
          
          # For later matching **ADD HEIGHT
-         initstat, initreg, gen_birthplace_icpsr1, wnd_yn
+         initstat, initreg, gen_birthplace_icpsr1, wnd_yn,
+         "lst1_hgt" = LST1_HGT_IN
          )
 
 ```
