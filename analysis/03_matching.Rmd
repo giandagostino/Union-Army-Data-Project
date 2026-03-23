@@ -1,10 +1,10 @@
 ---
-title: "Survival Analysis (in-progress)"
+title: "Matching Methodology"
 author: "Giancarlo D'Agostino"
 output:
   html_document:
     code_folding: hide
-date: "2026-03-21"
+date: "2026-03-22"
 ---
 
 # Matching
@@ -52,18 +52,20 @@ index <- function(x){
   x <- x |>
   group_by(subclass) |>
   mutate(
-    index_date = max(tb_first_date, na.rm = T)
+    tb_year = as.numeric(substr(as.character(tb_first_date), 1, 4)),
+    index_year = suppressWarnings(max(tb_year, na.rm = TRUE))
   ) |>
   ungroup() |>
+    
   mutate(
-    index_date = if_else(is.infinite(index_date), NA_real_, index_date)
+    index_year = if_else(is.infinite(index_year), NA_real_, index_year),
+    DYR = as.numeric(as.character(DYR)),
+    survival_time = DYR - index_year
   ) |>
-  drop_na(index_date) |>
-  mutate(
-    survival_time = DYR - index_date
-  ) |>
-  drop_na(survival_time) |>
-  filter(survival_time >= 0)
+  drop_na(index_year, survival_time) |>
+  group_by(subclass) |>
+  filter(survival_time >= 0) |>
+  ungroup()
   
   x <- remove_blank(x)
   
@@ -83,6 +85,62 @@ check_random_pairs <- function(df, n_pairs = 5){
   return(df)
 }
 
+
+# Check matching ratio
+
+check_matching_ratio <- function(match_formula, match_data, max_ratio = 10, my_calipers = NULL, my_exact = NULL) {
+  
+  ratios_to_test <- 1:max_ratio
+  standardized_counts <- numeric(length(ratios_to_test))
+  
+  for (k in ratios_to_test) {
+    # Run the matchit model dynamically based on the inputs provided
+    m.out <- matchit(match_formula, 
+                     data = match_data, 
+                     method = "nearest", 
+                     distance = "mahalanobis",
+                     ratio = k,
+                     caliper = my_calipers,
+                     std.caliper = FALSE,
+                     exact = my_exact)
+    
+    # Extract the number of matched control units
+    total_matched_controls <- summary(m.out)$nn["Matched", "Control"]
+    
+    # Standardize the count
+    standardized_counts[k] <- total_matched_controls / k
+  }
+  
+  # Clean dataframe for plotting
+  plot_data <- data.frame(
+    Ratio = ratios_to_test,
+    Standardized_Controls = standardized_counts
+  )
+  
+  # Plot results
+  p <- ggplot(data = plot_data, aes(x = Ratio, y = Standardized_Controls)) +
+    geom_line(color = "#007acc", linewidth = 1.2) +
+    geom_point(color = "#007acc", size = 4) +
+    theme_minimal() +
+    scale_x_continuous(breaks = ratios_to_test) +
+    labs(
+      title = "Standardized Matched Controls vs. Matching Ratio",
+      # Dynamically update the subtitle so you know which variables you are testing!
+      subtitle = paste("Formula:", deparse(match_formula)),
+      x = "Matching Ratio (1:k)",
+      y = "Standardized Matched Controls (Total / k)"
+    ) +
+    theme(
+      plot.title = element_text(face = "bold", size = 14),
+      plot.subtitle = element_text(face = "italic", color = "darkgray", size = 10),
+      axis.title = element_text(face = "bold")
+    )
+  
+  return(p)
+}
+
+
+
 ```
 
 Matching will be used in this study due to the nature of our data and our research question. As mentioned in '02_survival-analysis.Rmd,' we are using KM curves not to evaluate survival after treatment, but to compare survival rates between soldiers with tuberculosis versus without. Therefore, our first event cannot be first mention of TB for both cohorts, since the non-TB group won't have a diagnosis date. We will use an `index_date` after matching the TB-afflicted soldiers to a healthy soldier with the most common traits.
@@ -101,15 +159,12 @@ match_byr <- surv_tb |>
     tb_first_date, age_tb, age_death,
     BYR, DYR, initstat, TB_yn, wnd_yn, lst1_hgt
   ) |>
-  filter(
-    if_all(c(BYR), is.finite)
-  ) |>
   mutate(
     TB_yn = as.numeric(as.character(TB_yn)),
     BYR = as.numeric(as.character(BYR))
   ) |>
-  drop_na(initstat, DYR, BYR) |>
-  filter(!(TB_yn == 1 & is.na(tb_first_date)))
+  drop_na(BYR, DYR) |> 
+  filter(is.finite(BYR))
 
 
 # Diagnostics before matching
@@ -145,56 +200,14 @@ To minimize the number of people being thrown out with a 1:1 matching, we want t
 
 ```{r byr_ratio}
 
-# Define caliper
-byr_caliper <- 1
 
-# Define the maximum ratio
-max_ratio <- 20
-ratios_to_test <- 1:max_ratio
 
-# Create an empty vector to store results
-standardized_counts <- numeric(length(ratios_to_test))
-
-# loop for each ratio
-for (k in ratios_to_test) {
-
-  m.out <- matchit(TB_yn ~ BYR, 
-                   data = match_byr, 
-                   method = "nearest", 
-                   distance = "mahalanobis",
-                   ratio = k,
-                   caliper = c(BYR = 1),
-                   std.caliper = FALSE)
-  
-  # Extract the number of matched control units
-  total_matched_controls <- summary(m.out)$nn["Matched", "Control"]
-  
-  # Standardize the count
-  standardized_counts[k] <- total_matched_controls / k
-}
-
-# Clean dataframe for
-plot_data <- data.frame(
-  Ratio = ratios_to_test,
-  Standardized_Controls = standardized_counts
+check_matching_ratio(
+  match_formula = TB_yn ~ BYR, 
+  match_data = match_byr, 
+  my_calipers = c(BYR = 1)
 )
 
-# Plot results
-ggplot(data = plot_data, aes(x = Ratio, y = Standardized_Controls)) +
-  geom_line(color = "#007acc", linewidth = 1.2) +
-  geom_point(color = "#007acc", size = 4) +
-  theme_minimal() +
-  scale_x_continuous(breaks = ratios_to_test) +
-  labs(
-    title = "Standardized Matched Controls vs. Matching Ratio",
-    subtitle = "Visualizing the drop-off of valid controls due to caliper limits",
-    x = "Matching Ratio (1:k)",
-    y = "Standardized Matched Controls (Total / k)"
-  ) +
-  theme(
-    plot.title = element_text(face = "bold", size = 14),
-    axis.title = element_text(face = "bold")
-  )
 
 ```
 
@@ -243,7 +256,7 @@ model_lst <- matchit(TB_yn ~ BYR + age_lst,
                       data = match_lst,
                       distance = "glm",
                       link = "probit",
-                     caliper = c(age_lst = 2, BYR = 2),
+                     caliper = c(age_lst = 1, BYR = 1),
                      ratio = 5)
 
 # INDEX
@@ -254,6 +267,17 @@ summary(model_lst)
 
 all$a_hgtft
 ```
+
+```{r age_lst-ratio}
+
+check_matching_ratio(
+  match_formula = TB_yn ~ BYR + age_lst, 
+  match_data = match_lst, 
+  my_calipers = c(BYR = 1, age_lst = 1)
+)
+
+```
+
 
 And finally, height at enlistment:
 
@@ -288,6 +312,17 @@ hist(check$Freq)
 
 
 ```
+
+```{r height_ratio}
+
+check_matching_ratio(
+  match_formula = TB_yn ~ BYR + age_lst + lst1_hgt, 
+  match_data = match_hgt, 
+  my_calipers = c(BYR = 1, age_lst = 1, lst1_hgt = 1)
+)
+
+```
+
 
 
 Then state of first enlistment:
@@ -336,5 +371,14 @@ hist(check$Freq)
 
 ```
 
+```{r initstat_ratio}
+
+check_matching_ratio(
+  match_formula = TB_yn ~ BYR + age_lst + lst1_hgt, 
+  match_data = match_state, 
+  my_calipers = c(BYR = 2, age_lst = 2, lst1_hgt = 2)
+)
+
+```
 
 
