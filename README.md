@@ -1,3 +1,4 @@
+** [View latest rendered matching methodology doc](https://htmlpreview.github.io/?https://github.com/giandagostino/Union-Army-Data-Project/blob/main/analysis/03_matching.html) **
 ** [View latest rendered survival analysis doc](https://htmlpreview.github.io/?https://github.com/giandagostino/Union-Army-Data-Project/blob/main/analysis/02_survival-analysis.html) **
 
 # Union Army Dataset
