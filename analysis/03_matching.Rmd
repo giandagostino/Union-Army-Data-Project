@@ -4,7 +4,7 @@ author: "Giancarlo D'Agostino"
 output:
   html_document:
     code_folding: hide
-date: "2026-03-22"
+date: "2026-03-27"
 ---
 
 # Matching
@@ -34,8 +34,12 @@ lst_df <- read_rds("../data/in-progress/lst_df.RDS")
 ############# Important functions ##############3#
 
 remove_blank <- function(x){
-  x <- x |>
+  if (is.data.frame(x)) {
+    x <- x |>
     mutate(across(everything(), ~if_else(.x == "", NA, .x)))
+  } else {
+    x <- na_if(x, "")
+  }
   return(x)
 }
 
@@ -121,6 +125,7 @@ check_matching_ratio <- function(match_formula, match_data, max_ratio = 10, my_c
   p <- ggplot(data = plot_data, aes(x = Ratio, y = Standardized_Controls)) +
     geom_line(color = "#007acc", linewidth = 1.2) +
     geom_point(color = "#007acc", size = 4) +
+    coord_cartesian(ylim = c(0, 2200)) +
     theme_minimal() +
     scale_x_continuous(breaks = ratios_to_test) +
     labs(
@@ -216,7 +221,7 @@ check_matching_ratio(
 ```{r byr_final}
 
 # We will use adjust this based on the matching results
-byr_caliper <- 2
+byr_caliper <- 1
 
 model_byr_caliper <- matchit(TB_yn ~ BYR,
                       data = match_byr,
@@ -265,7 +270,7 @@ matched_df <- index(model_lst)
 check_random_pairs(matched_df, n_pairs = 5)
 summary(model_lst)
 
-all$a_hgtft
+
 ```
 
 ```{r age_lst-ratio}
@@ -279,7 +284,7 @@ check_matching_ratio(
 ```
 
 
-And finally, height at enlistment:
+And finally, height at enlistment (drop???):
 
 ```{r height}
 
@@ -297,8 +302,8 @@ model_hgt <- matchit(TB_yn ~ BYR + age_lst + lst1_hgt,
                       data = match_hgt,
                       distance = "glm",
                       link = "probit",
-                     caliper = c(age_lst = 1, BYR = 1),
-                     ratio = 8
+                     caliper = c(age_lst = 1, BYR = 1, lst1_hgt = 1),
+                     ratio = 5
                     # exact = ~BYR + age_lst + lst1_hgt)
 )
 # INDEX
@@ -329,7 +334,12 @@ Then state of first enlistment:
 
 ```{r initstat}
 
-match_state <- match_hgt
+
+match_state <- as.data.frame(match_hgt) |>
+  mutate(
+    initstat = remove_blank(initstat)
+  ) |>
+  drop_na(initstat)
   
 
 ggplot(match_state, aes(x = initstat, fill = factor(TB_yn))) + 
@@ -352,7 +362,7 @@ ggplot(match_state, aes(x = initstat, fill = factor(TB_yn))) +
 
 # Run matching algorithm
 model_state <- matchit(TB_yn ~ BYR + age_lst + lst1_hgt + initstat,
-                      data = match_hgt,
+                      data = match_state,
                       distance = "glm",
                       link = "probit",
                       caliper = c(age_lst = 1, BYR = 1, lst1_hgt = 1),
@@ -374,9 +384,9 @@ hist(check$Freq)
 ```{r initstat_ratio}
 
 check_matching_ratio(
-  match_formula = TB_yn ~ BYR + age_lst + lst1_hgt, 
+  match_formula = TB_yn ~ BYR + age_lst + lst1_hgt+ initstat, 
   match_data = match_state, 
-  my_calipers = c(BYR = 2, age_lst = 2, lst1_hgt = 2)
+  my_calipers = c(BYR = 1, age_lst = 1, lst1_hgt = 1)
 )
 
 ```
