@@ -19,8 +19,8 @@ library(data.table)
 library(MatchIt)
 library(knitr)
 
-ntb <- fread("../data/in-progress/ntb_v6.csv")
-tb <- fread("../data/in-progress/tb_v7.csv")
+ntb <- fread("../data/in-progress/ntb_v8.csv")
+tb <- fread("../data/in-progress/tb_v9.csv")
 all <- rbind(tb, ntb)
 
 # Remove warnings from final doc
@@ -33,8 +33,12 @@ opts_chunk$set(
 # Important functions
 
 remove_blank <- function(x){
-  x <- x |>
-    mutate(across(everything(), ~if_else(.x == "", NA, .x)))
+  if (is.data.frame(x)) {
+    x <- x |>
+    mutate(across(everything(), ~if_else(.x %in% c("", "."), NA, .x)))
+  } else {
+    x[x %in% c("", ".")] <- NA
+  }
   return(x)
 }
 
@@ -220,10 +224,14 @@ first_tb_full <- all |>
          tb_first_date,
          TB_yn,
          
-         # For later matching **ADD HEIGHT
-         initstat, initreg, gen_birthplace_icpsr1, wnd_yn,
-         "lst1_hgt" = LST1_HGT_IN
+  
+         initstat, initreg, bpl_match_clean, wnd_yn,
+         "lst1_hgt" = LST1_HGT_IN,
+         "lst1_job" = job_name,
+         "lst1_jobdt" = lstjobdt_cln,
+         "lst1_jcd" = jcd,
          )
+
 
 ```
 
@@ -335,9 +343,10 @@ To be able to compare TB to non-TB soldiers, we need to evaluate survival from a
 
 ```{r lst_km}
 
+# DELETE EVENTUALLY (see cleaning_methodology chunk 'first_lst')
 
 lst <- all |>
-  select(recidnum,
+    select(recidnum,
     lstdt1_1, mildfdt1, lstdt1_2, mildfdt2,
     lstdt1_3, mildfdt3, lstdt2_1, mildfdt4,
     lstdt2_2, mildfdt5, lstdt2_3, mildfdt6,
@@ -377,6 +386,9 @@ compare_df <- lst |>
 
 # From the Future: for 03_matching.Rmd
 saveRDS(compare_df, "../data/in-progress/lst_df.RDS")
+
+
+# DELETE EVENTUALLY ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
 compare_df$TB_yn <- factor(compare_df$TB_yn, 
@@ -641,3 +653,18 @@ summary(cox_fit)
 ```
 
 After evaluating the quality of matching, we decided that this method was not working. We will be going variable by variable in the new document, `03_matching.Rmd`
+
+
+```{r}
+all |> filter(!is.na(sc3rmks)) |>
+  select(sc3rmks)
+
+non_na(all$sc3rmks)
+
+all |> filter(grepl(c("LB" | "WEIGHT"), sc1rmks, fixed = TRUE)) |>
+  select(sc1rmks)
+
+all$rw_ind02
+
+```
+

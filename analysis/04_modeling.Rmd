@@ -1,0 +1,252 @@
+---
+title: "Survival Modeling"
+author: "Giancarlo D'Agostino"
+output: html_document
+  html_document:
+    code_folding: hide
+date: "2026-05-03"
+---
+
+# Matching
+
+After matching our cohorts, we are finally ready to model the survival of our Civil War soldiers. We will start by plotting Kalpan-Meier curves to see survival trajectory over time. After, we will fit a Cox regression with several covariates to see if geographic, age-related, demographic behavior, and/or other factors significantly decrease a person's chance of survival -- and if so, by how much.
+
+
+```{r setup, include = FALSE}
+
+library(tidyverse)
+library(survival)
+library(survminer)
+library(data.table)
+library(muhaz)
+
+matched_data <- read_rds("../data/in-progress/matched_data.RDS")
+
+ntb <- fread("../data/in-progress/ntb_v8.csv")
+tb <- fread("../data/in-progress/tb_v9.csv")
+all <- rbind(tb, ntb)
+
+```
+
+
+
+## Kaplan-Meier Curves
+
+
+```{r km_curves}
+
+matched_data <- matched_data |>
+  mutate(event = 1)
+
+# 2. Fit the Kaplan-Meier model
+# We are modeling survival time by the TB_yn cohort
+km_fit <- survfit(Surv(survival_time, event) ~ TB_yn, data = matched_data)
+
+# 3. Plot the Kaplan-Meier curves using ggsurvplot
+ggsurvplot(
+  km_fit,
+  data = matched_data,
+  pval = TRUE,                     # Displays the p-value for the log-rank test
+  conf.int = TRUE,                 # Displays 95% confidence intervals
+  risk.table = TRUE,               # Adds a risk table below the plot
+  risk.table.col = "strata",       # Colors the risk table numbers by cohort
+  risk.table.height = 0.25,        # Adjusts how much space the table takes
+  surv.median.line = "hv",         # Adds horizontal/vertical lines for median survival time
+  palette = c("#4E79A7", "#E15759"), # Uses the blue (Non-TB) and red (TB) from your previous plots
+  title = "Kaplan-Meier Survival Analysis: TB vs. Non-TB Cohort",
+  xlab = "Years Since Index Date",
+  ylab = "Survival Probability",
+  legend.title = "Cohort",
+  legend.labs = c("Non-TB", "TB"),
+  ggtheme = theme_minimal()        # Keeps the aesthetic consistent
+)
+
+p1 <- ggsurvplot(
+  km_fit, data = matched_data,
+  xlim = c(0, 10),
+  break.x.by = 1,                  # Forces risk table to show every year
+  pval = TRUE, conf.int = TRUE, risk.table = TRUE,
+  risk.table.col = "strata", risk.table.height = 0.25,
+  surv.median.line = "hv",
+  palette = c("#4E79A7", "#E15759"),
+  censor.shape = 124,
+  censor.size = 2,
+  ggtheme = theme_minimal()
+)
+
+p1$plot <- p1$plot +
+  scale_x_continuous(limits = c(0, 10), breaks = seq(0, 10, by = 1)) +
+  scale_y_continuous(limits = c(0.7 , 1.0), breaks = seq(0.7, 1.0, by = 0.05), expand = c(0, 0)) +
+  theme(panel.grid.minor = element_line(size = 0.25, colour = "grey90"))
+
+print(p1)
+
+
+p2 <- ggsurvplot(
+  km_fit, data = matched_data,
+  xlim = c(0, 5),
+  break.x.by = 1,                  # Forces risk table to show every year
+  pval = TRUE, conf.int = TRUE, risk.table = TRUE,
+  risk.table.col = "strata", risk.table.height = 0.25,
+  surv.median.line = "hv",
+  palette = c("#4E79A7", "#E15759"),
+  censor.shape = 124,
+  censor.size = 2,
+  ggtheme = theme_minimal()
+)
+
+p2$plot <- p2$plot +
+  scale_x_continuous(limits = c(0, 5), breaks = seq(0, 5, by = 1)) +
+  scale_y_continuous(limits = c(0.7 , 1.0), breaks = seq(0.7, 1.0, by = 0.05), expand = c(0, 0)) +
+  theme(panel.grid.minor = element_line(size = 0.25, colour = "grey90"))
+
+print(p2)
+
+```
+
+### Cumulative Hazard
+
+```{r cum_haz}
+# 5-Year Cumulative Hazard
+ggsurvplot(
+  km_fit,
+  data = matched_data,
+  fun = "cumhaz",
+  pval = TRUE,
+  conf.int = TRUE,
+  risk.table = TRUE,
+  risk.table.col = "strata",
+  risk.table.height = 0.25,
+  xlim = c(0, 5),
+  ylim = c(0, 0.4),
+  break.x.by = 1,                  # Risk table and x-axis breaks every year
+  palette = c("#4E79A7", "#E15759"),
+  title = "Cumulative Hazard (5-Year): TB vs. Non-TB Cohort",
+  xlab = "Years Since Index Date",
+  ylab = "Cumulative Hazard",
+  legend.title = "Cohort",
+  legend.labs = c("Non-TB", "TB"),
+  ggtheme = theme_minimal()
+)
+
+# 10-Year Cumulative Hazard
+ggsurvplot(
+  km_fit,
+  data = matched_data,
+  fun = "cumhaz",
+  pval = TRUE,
+  conf.int = TRUE,
+  risk.table = TRUE,
+  risk.table.col = "strata",
+  risk.table.height = 0.25,
+  xlim = c(0, 10),
+  ylim = c(0, 0.4),
+  break.x.by = 1,                  # Risk table and x-axis breaks every year
+  palette = c("#4E79A7", "#E15759"),
+  title = "Cumulative Hazard (10-Year): TB vs. Non-TB Cohort",
+  xlab = "Years Since Index Date",
+  ylab = "Cumulative Hazard",
+  legend.title = "Cohort",
+  legend.labs = c("Non-TB", "TB"),
+  ggtheme = theme_minimal()
+)
+
+```
+
+```{r inst_haz}
+
+# 5-Year Instantaneous Hazard Rate
+tb_data <- matched_data[matched_data$TB_yn == 1, ]
+ntb_data <- matched_data[matched_data$TB_yn == 0, ]
+
+haz_tb_5yr <- muhaz(
+  times = tb_data$survival_time,
+  delta = tb_data$event,
+  min.time = 0,
+  max.time = 5
+)
+
+haz_ntb_5yr <- muhaz(
+  times = ntb_data$survival_time,
+  delta = ntb_data$event,
+  min.time = 0,
+  max.time = 5
+)
+
+plot(haz_tb_5yr, col = "#E15759", lwd = 2,
+     main = "Instantaneous Hazard Rate (5-Year): TB vs. Non-TB",
+     xlab = "Years Since Index Date",
+     ylab = "Hazard Rate",
+     xlim = c(0, 5))
+lines(haz_ntb_5yr, col = "#4E79A7", lwd = 2)
+legend("topright",
+       c("TB", "Non-TB"),
+       col = c("#E15759", "#4E79A7"),
+       lwd = 2)
+
+
+# 10-Year Instantaneous Hazard Rate
+haz_tb_10yr <- muhaz(
+  times = tb_data$survival_time,
+  delta = tb_data$event,
+  min.time = 0,
+  max.time = 10
+)
+
+haz_ntb_10yr <- muhaz(
+  times = ntb_data$survival_time,
+  delta = ntb_data$event,
+  min.time = 0,
+  max.time = 10
+)
+
+plot(haz_tb_10yr, col = "#E15759", lwd = 2,
+     main = "Instantaneous Hazard Rate (10-Year): TB vs. Non-TB",
+     xlab = "Years Since Index Date",
+     ylab = "Hazard Rate",
+     xlim = c(0, 10))
+lines(haz_ntb_10yr, col = "#4E79A7", lwd = 2)
+legend("topright",
+       c("TB", "Non-TB"),
+       col = c("#E15759", "#4E79A7"),
+       lwd = 2)
+
+```
+
+
+## Cox Regression
+
+1 year survival, 5 year survival, 10 year (survival table / life table)
+
+cumulative hazard curve
+
+instananeous hazard
+
+why is the slope steadying out?
+- severe tb cases die immediately &
+- less severe, fights back OR
+- misclassified (pneumonia)
+
+- people with low immune systems.
+  - after first 5 years, who are the ones that die?
+     - table 1: people that died (which factors are related to death?) vs. survived
+     
+- table one: description of the cohort
+
+```{r cox}
+
+
+# 1. Fit the basic Cox regression model
+# We use the same Surv() object we created for the Kaplan-Meier curve
+cox_model <- coxph(Surv(survival_time, event) ~ TB_yn, data = matched_data)
+
+# 2. View the results
+summary(cox_model)
+
+
+```
+
+# Cox For First 10 Years
+
+
+
