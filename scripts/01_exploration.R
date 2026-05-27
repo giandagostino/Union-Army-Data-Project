@@ -1086,6 +1086,110 @@ i <- bind_rows(a,b,c,d)
 all$rh
 
 
+##################  Finding Additional Variables for Matching  ################
 
+
+
+non_na <- function(x){            # General function for determining non-na values
+  list = x[!is.na(x) & x != ""]
+  len = length(list)
+  prop = len/length(x)
+  return(list(len, prop, list))
+}
+
+
+all <- remove_blank(all)
+colProp <- as.data.frame(colMeans(!is.na(all)))
+colProp$prop <- colProp$`colMeans(!is.na(all))`
+
+colProp <- colProp |> arrange(desc(prop))
+
+
+
+all |> filter(!is.na(sc1rmks)) |>
+  select(sc1rmks)
+
+
+#############################  Occupation  ####################################3
+
+
+birth_compare <- all |>
+  select(
+    rb_stat1, rb_stat2,
+    initstat
+  )
+
+summary_stats <- birth_compare |>
+  mutate(
+    # Safely replace NAs just for the comparison so the math doesn't break
+    rb1_safe = coalesce(rb_stat1, "NONE_1"),
+    rb2_safe = coalesce(rb_stat2, "NONE_2"),
+    init_safe = coalesce(initstat, "NONE_INIT"),
+    
+    # Check if the initial state is different from BOTH birth states
+    is_different = (init_safe != rb1_safe) & (init_safe != rb2_safe)
+  ) |>
+  summarise(
+    Total_People = n(),
+    Different_State_Count = sum(is_different),
+    Percentage = (Different_State_Count / Total_People) * 100
+  )
+
+
+job <- all |>
+  select(
+    TB_yn,
+    ro_job01, ro_fdt01, gen_ro_jcd01, ro_job02, ro_fdt02, gen_ro_jcd02,
+    ro_job03, ro_fdt03, gen_ro_jcd03, ro_job04, ro_fdt04, gen_ro_jcd04,
+    ro_job05, ro_fdt05, gen_ro_jcd05, ro_job06, ro_fdt06, gen_ro_jcd06,
+    ro_job07, ro_fdt07, gen_ro_jcd07, ro_job08, ro_fdt08, gen_ro_jcd08,
+    ro_job09, ro_fdt09, gen_ro_jcd09, ro_job10, ro_fdt10, gen_ro_jcd10
+  )
+
+table(job$gen_ro_jcd01)
+
+tb_proportions <- job |>
+  # Filter to ensure we only look at valid job codes 1-9
+  filter(gen_ro_jcd01 >= 1 & gen_ro_jcd01 <= 9) |>
+  group_by(gen_ro_jcd01) |>
+  summarise(
+    Total_Count = n(),
+    TB_Cases = sum(TB_yn == 1, na.rm = TRUE),
+    Proportion_TB = mean(TB_yn, na.rm = TRUE),
+    Percentage_TB = Proportion_TB * 100
+  )
+
+ggplot(tb_proportions, aes(x = factor(gen_ro_jcd01), y = Proportion_TB)) +
+  geom_col(fill = "steelblue") +
+  coord_cartesian(ylim = c(0, 1)) +
+  labs(
+    title = "Proportion of TB Cases by Job Code",
+    x = "Job Code",
+    y = "Proportion (0.0 - 1.0)"
+  ) +
+  theme_minimal()
+
+
+###############################################################################
+##########################   Table One.  ######################################
+###############################################################################
+
+table(all$bpl_match_clean)
+
+table(all$gen_rb_stat_icpsr1)
+all$gen_rb_stat_icpsr2
+table(tb$gen_rb_stat_icpsr1)
+
+table(mil$ra_cplxn)
+table(cen$recgen_0)
+table(cen$recgen_1)
+table(cen$recgen_5)
+table(cen$recgen_6)
+
+
+table(cen$reccol_5)
+table(cen$reccol_6)
+table(cen$reccol_0)
+table(cen$reccol_1)
 
 
