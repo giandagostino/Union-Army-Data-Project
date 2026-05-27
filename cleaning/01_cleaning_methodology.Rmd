@@ -76,7 +76,7 @@ as full_data2;
 
 Checking for empty columns + removing from full_data[1-2]
 
-```{r}
+```{r, eval=FALSE}
 
 # dplyr
 
@@ -98,7 +98,7 @@ full_data2 %>%
 
 Isolating all TB-affected individuals from each chunk
 
-```{r}
+```{r, eval=FALSE}
 
 # retrieving names of all columns with substring 'TUBER'
 
@@ -115,7 +115,48 @@ names(full_data2)[tb_col2]
 
 dbListTables(con)
 
-##### Combine all rows w same recidnum
+
+
+```
+
+
+Combine all rows with the same `recidnum`
+
+```{r}
+
+duckdb::duckdb_register(con, "data1_raw", full_data1)
+duckdb::duckdb_register(con, "data2_raw", full_data2)
+
+
+full_data1 <- dbGetQuery(con, "
+  SELECT 
+    CAST(recidnum AS VARCHAR) as recidnum,
+    * EXCLUDE recidnum
+  FROM data1_raw
+  WHERE recidnum IS NOT NULL
+  QUALIFY ROW_NUMBER() OVER (PARTITION BY recidnum ORDER BY recidnum) = 1
+") |> as.data.table()
+
+full_data2 <- dbGetQuery(con, "
+  SELECT 
+    CAST(recidnum AS VARCHAR) as recidnum,
+    * EXCLUDE recidnum
+  FROM data2_raw
+  WHERE recidnum IS NOT NULL
+  QUALIFY ROW_NUMBER() OVER (PARTITION BY recidnum ORDER BY recidnum) = 1
+") |> as.data.table()
+
+# Re-register deduplicated versions
+duckdb::duckdb_register(con, "full_data1", full_data1)
+duckdb::duckdb_register(con, "full_data2", full_data2)
+
+```
+
+
+
+Combine all rows with the same `recidnum`
+
+```{r remove_dupl, eval=FALSE}
 
 setDT(full_data1)
 setDT(full_data2)
@@ -130,9 +171,10 @@ duckdb::duckdb_register(con, "full_data1", (full_data1 |> mutate(recidnum = as.c
 duckdb::duckdb_register(con, "full_data2", (full_data2 |> mutate(recidnum = as.character(recidnum))))
 
 
-
-
 ```
+
+
+Isolate all rows where at least one column mentions 'TUBERCULOSIS','CONSUMPTION', or 'PHTHISIS'
 
 ```{sql connection=con, output.var="tb"}
 
@@ -148,132 +190,131 @@ from
 )
 as tb
 
-WHERE REGEXP_MATCHES(a_clm01,   'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(a_clm02,   'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(a_clm03,   'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(a_clm04,   'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(a_clm05,   'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(a_clm07,   'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(a_clm08,   'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(a_clst01,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(a_clst02,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(a_clst07,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(afdesc01,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(afdesc02,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(afdesc07,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(dschrn01,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(dschrn02,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(dschrn03,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(dschrn04,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(dschrn05,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(dschrn07,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(dschrn08,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(dschrn09,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(dschrn10,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(dschrn11,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(dschrn12,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(dschrn13,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(dschrn14,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(dschrn16,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(dschrn19,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(dschrn20,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(dthcs01,   'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(dthcs02,   'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(dthcs03,   'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(dthcs04,   'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(dthcs05,   'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(dthcs06,   'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(dthcs07,   'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(dthcs08,   'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(dthcs09,   'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(dthcs10,   'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(dthcs12,   'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(dthcs16,   'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(dthcs18,   'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(gen_rd_cause_6icd, 'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(g_rel01,   'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(g_rel02,   'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(g_rel06,   'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(g_rel07,   'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(i_cmt2,    'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(i_eff101,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(i_eff102,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(i_eff103,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(i_eff104,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(i_eff107,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(i_eff201,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(i_fev1,    'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(i_fev2,    'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(i_rel101,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(i_rel102,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(ilwdsc01,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(ilwdsc02,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(ilwdsc03,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(ilwdsc04,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(ilwdsc05,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(ilwdsc06,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(ilwdsc07,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(ilwdsc08,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(ilwdsc09,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(ilwdsc10,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(ilwdsc11,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(ilwdsc12,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(ilwdsc13,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(ilwdsc14,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(ilwdsc15,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(ilwdsc16,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(ilwdsc17,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(ilwdsc18,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(ilwdsc19,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(ilwdsc20,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(l_rel01,   'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(m_rel01,   'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(n_rel01,   'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(othrrn01,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(othrrn02,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(p_cmt1,    'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(p_cmt2,    'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(p_cmt3,    'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(p_cmt5,    'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(pc_ds1,    'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(pc_ds2,    'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(pc_ds3,    'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(p_lrs1,    'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(p_lrs2,    'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(p_lrs3,    'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(p_lrs4,    'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(p_lrs5,    'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(p_lrs7,    'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(p_rel01,   'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(p_rel02,   'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(q_rel01,   'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(rd_cause,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(rd_ccaus,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(result01,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(result02,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(result03,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(result04,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(result05,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(result06,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(result08,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(result11,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(sc1rmks,   'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(sc2rmks,   'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(sc4rmk01,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(sc6rmk01,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(sc6rmk02,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(sc6rmk03,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(sc6rmk04,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(sc6rmk05,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(sc6rmk08,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(unftc1_1,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(unftc1_2,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(unftc1_3,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(unftc2_1,  'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(x_ext11,   'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(x_ext21,   'TUBER|CONSUMP|PHTH')
-  OR REGEXP_MATCHES(x_ext41,   'TUBER|CONSUMP|PHTH');
-
+WHERE REGEXP_MATCHES(a_clm01,   'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(a_clm02,   'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(a_clm03,   'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(a_clm04,   'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(a_clm05,   'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(a_clm07,   'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(a_clm08,   'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(a_clst01,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(a_clst02,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(a_clst07,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(afdesc01,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(afdesc02,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(afdesc07,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(dschrn01,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(dschrn02,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(dschrn03,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(dschrn04,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(dschrn05,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(dschrn07,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(dschrn08,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(dschrn09,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(dschrn10,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(dschrn11,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(dschrn12,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(dschrn13,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(dschrn14,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(dschrn16,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(dschrn19,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(dschrn20,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(dthcs01,   'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(dthcs02,   'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(dthcs03,   'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(dthcs04,   'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(dthcs05,   'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(dthcs06,   'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(dthcs07,   'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(dthcs08,   'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(dthcs09,   'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(dthcs10,   'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(dthcs12,   'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(dthcs16,   'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(dthcs18,   'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(gen_rd_cause_6icd, 'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(g_rel01,   'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(g_rel02,   'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(g_rel06,   'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(g_rel07,   'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(i_cmt2,    'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(i_eff101,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(i_eff102,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(i_eff103,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(i_eff104,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(i_eff107,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(i_eff201,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(i_fev1,    'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(i_fev2,    'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(i_rel101,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(i_rel102,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(ilwdsc01,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(ilwdsc02,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(ilwdsc03,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(ilwdsc04,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(ilwdsc05,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(ilwdsc06,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(ilwdsc07,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(ilwdsc08,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(ilwdsc09,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(ilwdsc10,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(ilwdsc11,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(ilwdsc12,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(ilwdsc13,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(ilwdsc14,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(ilwdsc15,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(ilwdsc16,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(ilwdsc17,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(ilwdsc18,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(ilwdsc19,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(ilwdsc20,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(l_rel01,   'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(m_rel01,   'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(n_rel01,   'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(othrrn01,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(othrrn02,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(p_cmt1,    'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(p_cmt2,    'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(p_cmt3,    'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(p_cmt5,    'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(pc_ds1,    'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(pc_ds2,    'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(pc_ds3,    'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(p_lrs1,    'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(p_lrs2,    'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(p_lrs3,    'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(p_lrs4,    'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(p_lrs5,    'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(p_lrs7,    'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(p_rel01,   'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(p_rel02,   'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(q_rel01,   'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(rd_cause,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(rd_ccaus,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(result01,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(result02,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(result03,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(result04,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(result05,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(result06,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(result08,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(result11,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(sc1rmks,   'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(sc2rmks,   'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(sc4rmk01,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(sc6rmk01,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(sc6rmk02,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(sc6rmk03,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(sc6rmk04,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(sc6rmk05,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(sc6rmk08,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(unftc1_1,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(unftc1_2,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(unftc1_3,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(unftc2_1,  'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(x_ext11,   'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(x_ext21,   'TUBERCULOSIS|CONSUMPTION|PHTHISIS')
+  OR REGEXP_MATCHES(x_ext41,   'TUBERCULOSIS|CONSUMPTION|PHTHISIS');
 
 
 ```
@@ -283,8 +324,8 @@ WHERE REGEXP_MATCHES(a_clm01,   'TUBER|CONSUMP|PHTH')
 ```{r}
 
 duckdb_register(con, "tb", tb |> mutate(recidnum = as.character(recidnum)))
-duckdb_register(con, "full_data1", full_data1 |> mutate(recidnum = as.character(recidnum)))
-duckdb_register(con, "full_data2", full_data2 |> mutate(recidnum = as.character(recidnum)))
+#duckdb_register(con, "full_data1", full_data1 |> mutate(recidnum = as.character(recidnum)))
+#duckdb_register(con, "full_data2", full_data2 |> mutate(recidnum = as.character(recidnum)))
 
 ```
 
@@ -310,7 +351,7 @@ WHERE recidnum NOT IN (
 
 Removing all empty columns:
 
-```{r}
+```{r, eval=FALSE}
 
 tb |>
   select(where(~ all(is.na(.) | . == ""))) |>
@@ -476,24 +517,42 @@ Birth Place
 
 ```{r birth place}
 
-bplace <- all |>
-  select(
-   gen_birthplace_icpsr1,
-   gen_birthplace_icpsr2,
-   gen_rb_cnty_icpsr1,
-   gen_rb_cnty_icpsr2
-  ) |> 
-  mutate(across(everything(), as.character)) |>
-  mutate(gen_birthplace_icpsr1 = na_if(gen_birthplace_icpsr1, "9999999"),
-         gen_birthplace_icpsr2 = na_if(gen_birthplace_icpsr2, "9999999"),
-         gen_rb_cnty_icpsr1 = na_if(gen_rb_cnty_icpsr1, "9999"),
-         gen_rb_cnty_icpsr2 = na_if(gen_rb_cnty_icpsr2, "9999")
-         )
-
-all$gen_birthplace_icpsr1 <- bplace$gen_birthplace_icpsr1
-all$gen_birthplace_icpsr2 <- bplace$gen_birthplace_icpsr2
-all$gen_rb_cnty_icpsr1 <- bplace$gen_rb_cnty_icpsr1
-all$gen_rb_cnty_icpsr2 <- bplace$gen_rb_cnty_icpsr2
+all <- all |>
+  mutate(
+    #Convert to character and set explicit missing values to NA
+    across(c(gen_birthplace_icpsr1, gen_birthplace_icpsr2), 
+           ~na_if(as.character(.x), "9999999")),
+    across(c(gen_rb_cnty_icpsr1, gen_rb_cnty_icpsr2), 
+           ~na_if(as.character(.x), "9999")),
+    
+    # Ensure quality codes are characters for comparison
+    rb_plqc1 = as.character(rb_plqc1),
+    rb_plqc2 = as.character(rb_plqc2),
+    
+    # Pick the BEST raw 6/7-digit ICPSR code
+    best_bpl_raw = case_when(
+      # If record 1 is explicitly marked as "Best", use it
+      rb_plqc1 == "B" ~ gen_birthplace_icpsr1,
+      # If record 2 is explicitly marked as "Best", use it
+      rb_plqc2 == "B" ~ gen_birthplace_icpsr2,
+      # Otherwise, default to record 1 if it exists
+      !is.na(gen_birthplace_icpsr1) ~ gen_birthplace_icpsr1,
+      # Fallback to record 2 if record 1 is missing
+      !is.na(gen_birthplace_icpsr2) ~ gen_birthplace_icpsr2,
+      # If both are NA, return NA
+      TRUE ~ NA_character_
+    ),
+    
+    # Coarsen into the final matching variable (State/Country level)
+    bpl_match_clean = case_when(
+      is.na(best_bpl_raw) ~ "Missing",
+      nchar(best_bpl_raw) >= 7 ~ substr(best_bpl_raw, 1, 3), # Foreign
+      nchar(best_bpl_raw) == 6 ~ substr(best_bpl_raw, 1, 2), # Native US State
+      TRUE ~ "Missing"
+    ),
+    
+    bpl_match_clean = as.factor(bpl_match_clean)
+  )
 
 
 ```
@@ -523,10 +582,121 @@ all$wnd_yn <- inj$wnd_yn
 
 ```
 
+```{r first_lst}
+
+
+cln_dupl <- function(x) {
+  x[duplicated(x)] <- NA
+  return(x)
+}
+
+
+setDT(all)
+all[, recidnum := as.character(recidnum)]
+
+
+date_cols <- c("lstdt1_1", "mildfdt1", "lstdt1_2", "mildfdt2", 
+               "lstdt1_3", "mildfdt3", "lstdt2_1", "mildfdt4", 
+               "lstdt2_2", "mildfdt5", "lstdt2_3", "mildfdt6")
+clean_cols <- c(date_cols, "DYR", "BYR")
+
+
+lst_dt <- all[, c("recidnum", clean_cols, "TB_yn"), with = FALSE]
+
+# Vectorized String Cleaning & Blanks Removal
+for (col in clean_cols) {
+  set(lst_dt, j = col, value = {
+    x <- lst_dt[[col]]
+    x[x == "" | is.na(x)] <- NA_character_
+    x[grep("--$", x)] <- sub("--$", "00", x[grep("--$", x)])
+    x[grep("--", x)] <- NA_character_
+    as.numeric(substr(x, 1, 4))
+  })
+}
+
+# Wipe out row-wise duplicates 
+
+mat <- as.matrix(lst_dt[, clean_cols, with = FALSE])
+mat[t(apply(mat, 1, duplicated))] <- NA
+
+# Reassign cleaned values 
+lst_dt[, (clean_cols) := as.data.table(mat)]
+
+# Find min
+lst_dt[, first_lst := do.call(pmin, c(.SD, na.rm = TRUE)), .SDcols = date_cols]
+
+# Calc survival metrics
+lst_dt[, `:=`(
+  surv_time = as.numeric(DYR) - first_lst,
+  age_lst   = first_lst - as.numeric(BYR),
+  event     = 1
+)]
+
+# Filter out invalid entries
+final_metrics <- lst_dt[
+  !is.na(first_lst) & surv_time >= 0, 
+  .(recidnum, first_lst, surv_time, age_lst, event)
+]
+
+# Merge back
+all <- merge(all, final_metrics, by = "recidnum", all.x = TRUE)
+
+
+```
+
+
 Occupation
 
 ```{r occupation}
 
+job <- all |>
+  select(
+    recidnum,
+    TB_yn,
+    ro_job01, ro_fdt01, gen_ro_jcd01, ro_job02, ro_fdt02, gen_ro_jcd02,
+    ro_job03, ro_fdt03, gen_ro_jcd03, ro_job04, ro_fdt04, gen_ro_jcd04,
+    ro_job05, ro_fdt05, gen_ro_jcd05, ro_job06, ro_fdt06, gen_ro_jcd06,
+    ro_job07, ro_fdt07, gen_ro_jcd07, ro_job08, ro_fdt08, gen_ro_jcd08,
+    ro_job09, ro_fdt09, gen_ro_jcd09, ro_job10, ro_fdt10, gen_ro_jcd10
+  )
+
+
+job_clean <- job |>
+  # 3. Pivot from wide to long
+  pivot_longer(
+    cols = starts_with("ro_") | starts_with("gen_ro_"),
+    names_to = c(".value", "job_num"),
+    names_pattern = "(?:gen_)?ro_(.*?)(\\d+)"
+  )|>
+  mutate(
+    clean_date_num = as.numeric(str_replace_all(fdt, "-", "0")),
+    year = as.numeric(substr(clean_date_num, 1, 4))
+  ) |>
+  filter(is.na(year) | year <= 1865) |>
+  group_by(recidnum) |>
+  arrange(desc(year), desc(job_num), .by_group = TRUE) |>
+  slice(1) |>
+  ungroup()
+
+lst_job_join <- job_clean |>
+  select(
+    recidnum, 
+    "job_name" = job, 
+    fdt, 
+    jcd, 
+    "lstjobdt_cln" = clean_date_num
+  ) |>
+  mutate(
+    lstjobdt_cln = if_else(lstjobdt_cln < 18000000, NA_real_, lstjobdt_cln)
+  ) |>
+  # Deduplicate: keep the most recent job per person
+  group_by(recidnum) |>
+  arrange(desc(lstjobdt_cln), .by_group = TRUE) |>
+  slice(1) |>
+  ungroup()
+
+all <- all |>
+  left_join(lst_job_join, by = "recidnum")
 
 
 ```
@@ -637,12 +807,16 @@ all <- all |> left_join(first_hgt, by = "recidnum")
 
 ```
 
-```{r write, include=F}
+Age at First Enlistment
 
-tb <- all[1:2573,]
-ntb <- all[2573:39339,]
 
-write_csv(tb, "../data/in-progress/tb_v7.csv")
-write_csv(ntb, "../data/in-progress/ntb_v6.csv")
+
+```{r write, include=F, eval=F}
+
+tb <- all[1:2144,]
+ntb <- all[2145:39338,]
+
+write_csv(tb, "../data/in-progress/tb_v9.csv")
+write_csv(ntb, "../data/in-progress/ntb_v8.csv")
 
 ```
